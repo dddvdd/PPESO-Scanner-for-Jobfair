@@ -5,6 +5,7 @@ import {
   adminCreateForm,
   adminCreateUser,
   adminDeleteEvent,
+  adminSetPassword,
   adminDeleteProfile,
   adminListEvents,
   adminListEventForms,
@@ -562,6 +563,11 @@ function StaffPanel({ pushUndo }) {
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState(null);
 
+  const [passwordEditId, setPasswordEditId] = useState(null);
+  const [passwordValue, setPasswordValue] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordError, setPasswordError] = useState(null);
+
   async function reload() {
     const result = await adminListProfiles();
     if (result.ok) setProfiles(result.data ?? []);
@@ -623,6 +629,36 @@ function StaffPanel({ pushUndo }) {
     setNewPassword("");
     setNewRole("staff");
     reload();
+  }
+
+  async function savePassword(profile) {
+    setPasswordError(null);
+    setPasswordBusy(true);
+    const result = await adminSetPassword({
+      email: profile.email,
+      password: passwordValue,
+    });
+    setPasswordBusy(false);
+
+    if (!result.ok) {
+      setPasswordError(result.error.message);
+      return;
+    }
+
+    const payload = result.data ?? {};
+    if (payload.status !== "ok") {
+      const messages = {
+        forbidden: "Only admins can change passwords.",
+        weak_password: "Password must be at least 8 characters.",
+        not_found: "No account with that email was found.",
+      };
+      setPasswordError(messages[payload.status] || payload.message || "Could not update the password.");
+      return;
+    }
+
+    flash(`Password updated for ${profile.email}.`);
+    setPasswordEditId(null);
+    setPasswordValue("");
   }
 
   async function removeProfile(profile) {
@@ -850,6 +886,58 @@ function StaffPanel({ pushUndo }) {
                   access. Their Supabase login email stays until you delete it
                   in Authentication → Users.
                 </p>
+              )}
+
+              {passwordEditId === p.id ? (
+                <div className="form-stack" style={{ marginTop: 10 }}>
+                  {passwordError && (
+                    <p role="alert" className="alert alert--error">{passwordError}</p>
+                  )}
+                  <label className="field">
+                    <span>New password (min 8 characters)</span>
+                    <input
+                      type="text"
+                      className="field"
+                      value={passwordValue}
+                      onChange={(e) => setPasswordValue(e.target.value)}
+                    />
+                  </label>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                      type="button"
+                      className="btn btn--primary btn--small"
+                      disabled={passwordBusy}
+                      onClick={() => savePassword(p)}
+                    >
+                      {passwordBusy ? "Saving…" : "Save password"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--small"
+                      onClick={() => {
+                        setPasswordEditId(null);
+                        setPasswordValue("");
+                        setPasswordError(null);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ marginTop: 10 }}>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--small"
+                    onClick={() => {
+                      setPasswordEditId(p.id);
+                      setPasswordValue("");
+                      setPasswordError(null);
+                    }}
+                  >
+                    Edit password…
+                  </button>
+                </div>
               )}
             </li>
           );

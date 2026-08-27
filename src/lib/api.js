@@ -427,6 +427,15 @@ export function adminCreateUser({ email, password, role = "staff" }) {
   );
 }
 
+export function adminSetPassword({ email, password }) {
+  return toResult(() =>
+    getSupabase().rpc("admin_set_password", {
+      p_email: email,
+      p_new_password: password,
+    })
+  );
+}
+
 // --- Undo support: snapshot before delete, re-insert verbatim after ---------
 
 export function adminListEventForms(eventId) {
