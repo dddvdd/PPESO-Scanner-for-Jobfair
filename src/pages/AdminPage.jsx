@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   adminCreateEvent,
   adminCreateForm,
+  adminCreateUser,
   adminDeleteEvent,
   adminDeleteProfile,
   adminListEvents,
@@ -555,6 +556,12 @@ function StaffPanel({ pushUndo }) {
   const [confirmingId, setConfirmingId] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState("staff");
+  const [creating, setCreating] = useState(false);
+  const [formError, setFormError] = useState(null);
+
   async function reload() {
     const result = await adminListProfiles();
     if (result.ok) setProfiles(result.data ?? []);
@@ -579,6 +586,42 @@ function StaffPanel({ pushUndo }) {
       return;
     }
     flash(role === "staff" ? "Account promoted to Staff — scanner access granted." : "Access revoked — account is Pending.");
+    reload();
+  }
+
+  async function createUser(e) {
+    e.preventDefault();
+    setFormError(null);
+    setCreating(true);
+    const result = await adminCreateUser({
+      email: newEmail,
+      password: newPassword,
+      role: newRole,
+    });
+    setCreating(false);
+
+    if (!result.ok) {
+      setFormError(result.error.message);
+      return;
+    }
+
+    const payload = result.data ?? {};
+    if (payload.status !== "ok") {
+      const messages = {
+        forbidden: "Only admins can create accounts.",
+        invalid_role: "Invalid role selected.",
+        invalid_email: "Please enter a valid email address.",
+        weak_password: "Password must be at least 8 characters.",
+        email_taken: "An account with that email already exists.",
+      };
+      setFormError(messages[payload.status] || payload.message || "Could not create the account.");
+      return;
+    }
+
+    flash(`Account created for ${payload.email} as ${ROLE_LABELS[payload.role] ?? payload.role}.`);
+    setNewEmail("");
+    setNewPassword("");
+    setNewRole("staff");
     reload();
   }
 
@@ -635,10 +678,65 @@ function StaffPanel({ pushUndo }) {
       )}
       <Notice text={notice} />
 
+      <div className="glass-card event-card">
+        <h2>Create account</h2>
+        <p className="event-desc">
+          Add a staff or admin login. The password is hashed securely and the
+          account is ready to sign in immediately — no email confirmation needed.
+        </p>
+        <form className="form-stack" onSubmit={createUser}>
+          {formError && (
+            <p role="alert" className="alert alert--error">{formError}</p>
+          )}
+          <label className="field">
+            <span>Email</span>
+            <input
+              type="email"
+              className="field"
+              value={newEmail}
+              placeholder="name@agency.gov.ph"
+              onChange={(e) => setNewEmail(e.target.value)}
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Password (min 8 characters)</span>
+            <input
+              type="text"
+              className="field"
+              value={newPassword}
+              placeholder="••••••••"
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Role</span>
+            <select
+              className="field"
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value)}
+            >
+              <option value="staff">Staff (scanner access)</option>
+              <option value="admin">Admin</option>
+              <option value="supervisor">Supervisor</option>
+            </select>
+          </label>
+          <div>
+            <button
+              type="submit"
+              className="btn btn--primary"
+              disabled={creating}
+            >
+              {creating ? "Creating…" : "Create account"}
+            </button>
+          </div>
+        </form>
+      </div>
+
       <p className="page-lead">
-        New hires are added in the Supabase Dashboard (Authentication → Users).
-        They appear here as <strong>Pending</strong> — promote them to{" "}
-        <strong>Staff</strong> so they can use the check-in scanner.
+        Accounts you create appear below with their role. Promote, revoke, or
+        delete them anytime.
       </p>
 
       {isEmpty && !error && (

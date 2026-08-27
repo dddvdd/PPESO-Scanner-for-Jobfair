@@ -422,6 +422,16 @@ export function adminDeleteProfile(profileId) {
   );
 }
 
+export function adminCreateUser({ email, password, role = "staff" }) {
+  return toResult(() =>
+    getSupabase().rpc("admin_create_user", {
+      p_email: email,
+      p_password: password,
+      p_role: role,
+    })
+  );
+}
+
 // --- Undo support: snapshot before delete, re-insert verbatim after ---------
 
 export function adminListEventForms(eventId) {
