@@ -280,6 +280,45 @@ npm run validate:migrations  # Check all SQL files are valid
 
 ---
 
+## 📊 Link Supabase data to Excel
+
+Want to view or export live registration and check-in data in Excel?
+
+### Get your database password
+1. Go to **Supabase Dashboard** → **Project Settings** ⚙️ → **Database**
+2. Click **"Connection string"** → select the **URI** tab
+3. Copy the password from:
+   ```
+   postgres://postgres:[YOUR_PASSWORD]@db.chsbyqtjymbagbyqvgdw.supabase.co:5432/postgres
+   ```
+
+### Connect Excel to Supabase
+1. Open Excel → **Data** tab → **Get Data** → **From Database** → **From PostgreSQL Database**
+2. Paste this server address:
+   ```
+   db.chsbyqtjymbagbyqvgdw.supabase.co,5432
+   ```
+3. Click **OK** → enter your credentials:
+   - **Username:** `postgres`
+   - **Password:** (the one you copied above)
+4. In the Navigator window, select the tables you want:
+   - `registrations` — all job seeker sign-ups
+   - `check_ins` — who checked in and when
+   - `events` — event details
+5. Click **Load**
+
+### Refresh your data
+Data doesn't auto-update. To refresh:
+- Click anywhere in the Excel table → **Data** tab → **Refresh All**
+
+Or set auto-refresh:
+- Right-click table → **Table** → **Properties** → check **"Refresh every X minutes"**
+
+### Security note
+⚠️ The connection stores your database password in the Excel file. Do **not** share the `.xlsx` file publicly. Remove the connection before sharing: **Data → Queries & Connections → Delete**.
+
+---
+
 ## 🔒 Security notes
 
 - The `.env` file is **never** pushed to Git (it's in `.gitignore`)
