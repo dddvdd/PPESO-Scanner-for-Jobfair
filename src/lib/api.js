@@ -391,12 +391,7 @@ export function adminListRegistrations({ eventId, limit = 200 } = {}) {
 }
 
 export function adminListProfiles() {
-  return toResult(() =>
-    getSupabase()
-      .from("profiles")
-      .select("id, full_name, role, created_at")
-      .order("created_at", { ascending: true })
-  );
+  return toResult(() => getSupabase().rpc("admin_list_profiles"));
 }
 
 export function adminUpdateProfileRole(profileId, role) {

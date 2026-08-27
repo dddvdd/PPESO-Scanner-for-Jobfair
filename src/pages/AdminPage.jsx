@@ -766,6 +766,7 @@ function StaffPanel({ pushUndo }) {
               <p className="event-meta">
                 Role: {ROLE_LABELS[p.role] ?? p.role}
               </p>
+              <p className="event-meta">{p.email}</p>
 
               {!isSelf && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
