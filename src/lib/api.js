@@ -331,7 +331,7 @@ export function adminCreateForm({ eventId, name, description }) {
   return toResult(() =>
     getSupabase()
       .from("forms")
-      .insert({ event_id: eventId, name, description })
+      .insert({ event_id: eventId, name, description, status: "published", published_at: new Date().toISOString() })
       .select()
       .single()
   );
