@@ -5,8 +5,8 @@ import {
   adminCreateForm,
   adminCreateUser,
   adminDeleteEvent,
+  adminDeleteUser,
   adminSetPassword,
-  adminDeleteProfile,
   adminListEvents,
   adminListEventForms,
   adminListFormFields,
@@ -15,7 +15,6 @@ import {
   adminRestoreEvent,
   adminRestoreFormFields,
   adminRestoreForms,
-  adminRestoreProfile,
   adminUpdateEvent,
   adminUpdateProfileRole,
 } from "../lib/api.js";
@@ -665,7 +664,7 @@ function StaffPanel({ pushUndo }) {
     setBusyId(profile.id);
     setError(null);
 
-    const result = await adminDeleteProfile(profile.id);
+    const result = await adminDeleteUser(profile.email);
     setBusyId(null);
     setDeleteConfirmId(null);
 
@@ -674,7 +673,17 @@ function StaffPanel({ pushUndo }) {
       return;
     }
 
-    const displayName = profile.full_name || "(no name yet)";
+    const payload = result.data ?? {};
+    if (payload.status !== "ok") {
+      const messages = {
+        forbidden: "Only admins can delete accounts.",
+        not_found: "That account could not be found.",
+      };
+      setError(messages[payload.status] || payload.message || "Could not delete the account.");
+      return;
+    }
+
+    const displayName = profile.full_name || profile.email || "(no name yet)";
     flash(`"${displayName}" was removed from this workspace.`);
     reload();
 
@@ -684,13 +693,12 @@ function StaffPanel({ pushUndo }) {
       seconds: 8,
       afterMessage: `"${displayName}" was restored.`,
       run: async () => {
-        // Re-insert the exact profile row (same id, role, timestamps). The
-        // auth user was never touched, so this fully restores the account.
-        const restored = await adminRestoreProfile({
-          id: profile.id,
-          full_name: profile.full_name ?? null,
+        // Deletion removed the whole Auth account, so undo recreates it via
+        // the same corrected admin_create_user flow (temporary password).
+        const restored = await adminCreateUser({
+          email: profile.email,
+          password: "Restore@Temp123",
           role: profile.role,
-          created_at: profile.created_at,
         });
         if (!restored.ok) return restored.error.message;
         reload();
@@ -880,13 +888,12 @@ function StaffPanel({ pushUndo }) {
                 </div>
               )}
 
-              {confirmingDelete && (
-                <p className="field-hint">
-                  Removes this person&apos;s role record here so they lose all
-                  access. Their Supabase login email stays until you delete it
-                  in Authentication → Users.
-                </p>
-              )}
+                  {confirmingDelete && (
+                    <p className="field-hint">
+                      Permanently removes this person&apos;s Supabase login and role
+                      record. They will no longer be able to sign in.
+                    </p>
+                  )}
 
               {passwordEditId === p.id ? (
                 <div className="form-stack" style={{ marginTop: 10 }}>

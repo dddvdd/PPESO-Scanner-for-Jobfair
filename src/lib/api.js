@@ -427,6 +427,12 @@ export function adminCreateUser({ email, password, role = "staff" }) {
   );
 }
 
+export function adminDeleteUser(email) {
+  return toResult(() =>
+    getSupabase().rpc("admin_delete_user", { p_email: email })
+  );
+}
+
 export function adminSetPassword({ email, password }) {
   return toResult(() =>
     getSupabase().rpc("admin_set_password", {

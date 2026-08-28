@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getPublishedFormWithFields, listPublishedEvents, registerApplicant } from "../lib/api.js";
 import FormFieldRenderer, { IdentityField } from "../components/FormFieldRenderer.jsx";
@@ -15,6 +15,58 @@ const CONSENT_PARAGRAPHS = [
   "By checking the box below, I voluntarily give my consent to the collection, recording, use, processing, storage, and retention of my personal information for the purpose of processing my jobseeker registration and my participation in this job fair.",
   "I also acknowledge my rights as a data subject under the law, including the right to access, correct, and request the deletion of my personal information.",
 ];
+
+const REGISTRATION_QUESTIONS_TIP =
+  "You have never held formal employment before — this job fair is your first time applying for work.";
+
+function LegendInfoTip({ id, tipText, disabled, popClassName = "" }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event) {
+      if (wrapRef.current && !wrapRef.current.contains(event.target)) setOpen(false);
+    }
+    function onKeyDown(event) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  if (!tipText) return null;
+
+  return (
+    <span className="tip-host" ref={wrapRef}>
+      <span className="tip-wrap">
+        <button
+          type="button"
+          className="choice-tip"
+          aria-label="What does this mean?"
+          aria-expanded={open}
+          aria-describedby={id}
+          disabled={disabled}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen((o) => !o);
+          }}
+        >
+          ?
+        </button>
+      </span>
+      {open && (
+        <span role="tooltip" id={id} className={`tip-pop ${popClassName}`}>
+          {tipText}
+        </span>
+      )}
+    </span>
+  );
+}
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -442,7 +494,10 @@ export default function RegisterPage() {
 
         {sortedFields.length > 0 && (
           <fieldset className="form-section">
-            <legend>Registration questions</legend>
+            <legend>
+              Registration questions{" "}
+              <LegendInfoTip id="registration-questions-tip" tipText={REGISTRATION_QUESTIONS_TIP} disabled={submitting} popClassName="tip-pop--legend" />
+            </legend>
             {hasAddressGroup && (
               <AddressFieldsGroup
                 keys={addressKeys}

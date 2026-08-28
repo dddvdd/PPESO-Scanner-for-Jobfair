@@ -674,7 +674,7 @@ textarea[aria-invalid="true"] {
   z-index: 30;
   top: calc(100% + 8px);
   right: -8px;
-  width: min(280px, 72vw);
+  width: min(180px, 72vw);
   padding: 12px 14px;
   border-radius: 12px;
   background: #12151f;
@@ -685,6 +685,16 @@ textarea[aria-invalid="true"] {
   line-height: 1.55;
   text-align: left;
   color: var(--text-dim);
+}
+
+/* Legend tooltip is anchored to the fieldset (not the "?" button) so it
+   spans the field width and never spills off-screen on small devices. */
+.tip-pop--legend {
+  top: 44px;
+  left: 16px;
+  right: 16px;
+  width: auto;
+  transform: none;
 }
 
 /* Radio / checkbox choice rows */
@@ -722,6 +732,7 @@ textarea[aria-invalid="true"] {
   padding: 20px 20px 22px;
   display: grid;
   gap: 14px;
+  position: relative;
 }
 
 /* Data Privacy Consent block */

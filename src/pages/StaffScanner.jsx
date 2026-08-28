@@ -155,12 +155,20 @@ export default function StaffScanner() {
         return;
       }
       const { Html5Qrcode } = await import("html5-qrcode");
+
+      // Clear any leftover video/canvas from a previous (failed) instance so a
+      // retry doesn't fail with "element already has a child".
+      const region = document.getElementById(READER_ELEMENT_ID);
+      if (region) region.innerHTML = "";
+
       const instance = new Html5Qrcode(READER_ELEMENT_ID);
       scannerRef.current = instance;
 
-      // Same start strategy as the proven .basis/scanner.html:
+      // Same start strategy as the proven .basis/scanner.html, hardened with
+      // extra fallbacks so "Scan Again" reliably relaunches the camera:
       //   1) rear-facing preference,
-      //   2) on failure enumerate cameras and start explicitly by device id,
+      //   2) explicit rear camera by device id (exact, then loose),
+      //   3) any enumerated camera,
       // with a watchdog so a hung start degrades gracefully.
       const withTimeout = (promise) =>
         Promise.race([
@@ -170,33 +178,43 @@ export default function StaffScanner() {
           ),
         ]);
       const config = { fps: 10, qrbox: 250 };
+      const onDecode = (decodedText) => handleDecodedText(decodedText);
 
+      let devices = [];
       try {
-        await withTimeout(
-          instance.start(
-            { facingMode: "environment" },
-            config,
-            (decodedText) => handleDecodedText(decodedText),
-            () => {} // per-frame decode misses are expected noise
-          )
-        );
+        devices = (await Html5Qrcode.getCameras()) ?? [];
       } catch {
-        const devices = await Html5Qrcode.getCameras();
-        if (!devices || devices.length === 0) {
-          throw new Error("No camera found on this device.");
-        }
-        const backCam =
-          devices.find((d) => /back|rear|environment/i.test(d.label)) ??
-          devices[devices.length - 1];
-        await withTimeout(
-          instance.start(
-            { deviceId: { exact: backCam.id } },
-            config,
-            (decodedText) => handleDecodedText(decodedText),
-            () => {}
-          )
-        );
+        devices = [];
       }
+      const backCam =
+        devices.find((d) => /back|rear|environment/i.test(d.label)) ??
+        devices[devices.length - 1] ??
+        null;
+
+      const attempts = [{ facingMode: "environment" }];
+      if (backCam) {
+        attempts.push({ deviceId: { exact: backCam.id } });
+        attempts.push({ deviceId: backCam.id });
+      }
+      if (devices[0]) attempts.push({ deviceId: devices[0].id });
+      if (!attempts.some((a) => a.facingMode)) {
+        attempts.push({ facingMode: "user" });
+      }
+
+      let lastError;
+      for (const constraint of attempts) {
+        try {
+          await withTimeout(
+            instance.start(constraint, config, onDecode, () => {})
+          );
+          lastError = null;
+          break;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      if (lastError) throw lastError;
+
       setCameraState("active");
     } catch (err) {
       const failedInstance = scannerRef.current;
@@ -312,12 +330,15 @@ export default function StaffScanner() {
   const scanAgain = useCallback(() => {
     resultActiveRef.current = false;
     setScanOutcome(null);
-    if (scannerRef.current) {
-      resumeScanning();
-    } else {
-      startCamera();
-    }
-  }, [resumeScanning, startCamera]);
+    // Always relaunch from a clean state. A paused/broken instance (or a
+    // leftover stream) can otherwise refuse to resume and fall back to the
+    // "Camera unavailable" notice — tearing down first makes Scan Again
+    // reliably restart the camera.
+    const existing = scannerRef.current;
+    scannerRef.current = null;
+    safeStopCameraInstance(existing);
+    startCamera();
+  }, [startCamera]);
 
   // ---------------------------------------------------------------- rendering
   const toneClass =

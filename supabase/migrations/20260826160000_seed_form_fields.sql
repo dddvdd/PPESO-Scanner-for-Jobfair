@@ -25,9 +25,9 @@ SELECT
 FROM public.forms f
 CROSS JOIN (VALUES
   ('date_of_birth',                  'Date of Birth',                'date',       false, '[]'::jsonb,                                                                  0),
-  ('course',                         'Course',                       'short_text', true,  '[]'::jsonb,                                                                  1),
+  ('course',                         'Highest Educational Attainment','short_text', true,  '[]'::jsonb,                                                                  1),
   ('pwd',                            'PWD',                          'radio',      false, '["Yes", "No"]'::jsonb,                                                       2),
-  ('sex',                            'Sex',                          'radio',      true,  '["Male", "Female", "Prefer not to say"]'::jsonb,                              3),
+  ('sex',                            'Sex',                          'radio',      true,  '["Male", "Female"]'::jsonb,                                                    3),
   ('first_time_job_seeker',          'FIRST TIME JOB SEEKER',        'yes_no',     true,  '[]'::jsonb,                                                                  4),
   ('returning_ofw',                  'RETURNING OFW',                'yes_no',     true,  '[]'::jsonb,                                                                  5),
   ('returning_worker',               'RETURNING WORKER',             'yes_no',     true,  '[]'::jsonb,                                                                  6),

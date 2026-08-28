@@ -76,7 +76,35 @@ begin
     now(),
     now()
   )
-  returning id into v_user_id;
+   returning id into v_user_id;
+
+  -- GoTrue dereferences auth.identities during a password grant; without it
+  -- the login returns HTTP 500 even with a valid hash. Mirror what the
+  -- Dashboard does when creating an email user. Replicate the provider_id
+  -- convention already used by this project's existing email identities so
+  -- the new row is structurally identical to a Dashboard-created one.
+  declare
+    v_use_email boolean := true;
+  begin
+    select (i.provider_id like '%@%')
+      into v_use_email
+    from auth.identities i
+    where i.provider = 'email'
+    limit 1;
+    v_use_email := coalesce(v_use_email, true);
+
+    insert into auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
+    values (
+      gen_random_uuid(),
+      v_user_id,
+      jsonb_build_object('sub', v_user_id::text, 'email', lower(btrim(p_email)), 'email_verified', true, 'provider', 'email'),
+      'email',
+      case when v_use_email then lower(btrim(p_email)) else v_user_id::text end,
+      now(),
+      now(),
+      now()
+    );
+  end;
 
   update public.profiles
      set role = p_role

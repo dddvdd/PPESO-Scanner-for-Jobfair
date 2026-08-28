@@ -13,7 +13,7 @@ const IDENTITY = {
   lastName: "Last name",
   email: "Email",
   mobileNumber: "Mobile number",
-  middleName: "Middle name (optional)",
+  middleName: "Middle name (If Applicable)",
   suffix: "Suffix (optional)",
 };
 
