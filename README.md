@@ -289,14 +289,14 @@ Want to view or export live registration and check-in data in Excel?
 2. Click **"Connection string"** → select the **URI** tab
 3. Copy the password from:
    ```
-   postgres://postgres:[YOUR_PASSWORD]@db.chsbyqtjymbagbyqvgdw.supabase.co:5432/postgres
+    postgres://postgres:[YOUR_PASSWORD]@db.YOUR_PROJECT_REF.supabase.co:5432/postgres
    ```
 
 ### Connect Excel to Supabase
 1. Open Excel → **Data** tab → **Get Data** → **From Database** → **From PostgreSQL Database**
 2. Paste this server address:
    ```
-   db.chsbyqtjymbagbyqvgdw.supabase.co,5432
+    db.YOUR_PROJECT_REF.supabase.co,5432
    ```
 3. Click **OK** → enter your credentials:
    - **Username:** `postgres`

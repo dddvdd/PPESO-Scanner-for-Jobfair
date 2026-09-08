@@ -10,6 +10,9 @@ import StaffRoute from "./components/StaffRoute.jsx";
 
 const StaffScanner = lazy(() => import("./pages/StaffScanner.jsx"));
 const AdminPage = lazy(() => import("./pages/AdminPage.jsx"));
+const EventRegistrantsPage = lazy(() => import("./pages/EventRegistrantsPage.jsx"));
+const VacanciesPage = lazy(() => import("./pages/VacanciesPage.jsx"));
+const InterviewStatus = lazy(() => import("./pages/InterviewStatus.jsx"));
 
 function NotFound() {
   return (
@@ -88,6 +91,22 @@ export default function App() {
               </StaffRoute>
             }
           />
+          <Route
+            path="/admin/events/:eventId/registrants"
+            element={
+              <StaffRoute adminOnly>
+                <Suspense fallback={<p role="status">Loading registrants…</p>}>
+                  <EventRegistrantsPage />
+                </Suspense>
+              </StaffRoute>
+            }
+          />
+          <Route path="/admin/vacancies/:eventId?" element={
+            <StaffRoute adminOnly>
+              <Suspense fallback={<p role="status">Loading vacancies…</p>}><VacanciesPage /></Suspense>
+            </StaffRoute>
+          } />
+          <Route path="/staff/interviews" element={<StaffRoute><Suspense fallback={<p role="status">Loading interviews…</p>}><InterviewStatus /></Suspense></StaffRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

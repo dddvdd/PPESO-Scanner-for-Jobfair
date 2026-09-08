@@ -105,6 +105,7 @@ export default function AdminPage() {
     <section className="page">
       <p className="page-kicker">Admin</p>
       <h1 className="page-title">Event &amp; staff administration</h1>
+      <Link className="btn btn--ghost btn--small" style={{ alignSelf: "flex-start" }} to="/admin/vacancies">Vacancies</Link>
 
       <div
         className="link-row"
@@ -470,7 +471,7 @@ function EventsPanel({ pushUndo }) {
           const confirmingDelete = deletingId === ev.id;
 
           return (
-            <li key={ev.id} className="glass-card event-card">
+            <li key={ev.id} className="glass-card event-card" style={{ minWidth: 0 }}>
               <h2>{ev.name}</h2>
               <p className="event-meta">
                 {ev.event_date ?? "No date"}
@@ -484,6 +485,12 @@ function EventsPanel({ pushUndo }) {
                 {ev.status}
               </span>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                <Link
+                  className="btn btn--ghost btn--small"
+                  to={`/admin/events/${ev.id}/registrants`}
+                >
+                  Registrants
+                </Link>
                 <button
                   type="button"
                   className="btn btn--ghost btn--small"
@@ -697,7 +704,7 @@ function StaffPanel({ pushUndo }) {
         // the same corrected admin_create_user flow (temporary password).
         const restored = await adminCreateUser({
           email: profile.email,
-          password: "Restore@Temp123",
+          password: "ChangeMe@Temp123",
           role: profile.role,
         });
         if (!restored.ok) return restored.error.message;

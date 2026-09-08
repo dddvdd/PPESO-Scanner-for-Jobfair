@@ -3,7 +3,7 @@ import { describeError } from "./errorTokens.js";
 
 /**
  * Single sanctioned data-access layer between UI and the verified Supabase
- * backend (DEV: chsbyqtjymbagbyqvgdw). Every call returns:
+ * backend. Every call returns:
  *
  *   success → { ok: true, data }
  *   failure → { ok: false, error }   where error = describeError(...)
@@ -225,6 +225,16 @@ export async function staffLookup(query) {
   return ok({ status: d.status ?? "ok", results });
 }
 
+export function listInterviewApplicants(query, page) {
+  return toResult(() => getSupabase().rpc("staff_interview_applicants", { p_query: text(query), p_page: page }));
+}
+
+export function saveInterviewStatus(registrationId, company, position, status) {
+  return toResult(() => getSupabase().rpc("staff_save_interview_status", {
+    p_registration_id: registrationId, p_company: text(company), p_position: text(position), p_status: status,
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // Auth / role
 // ---------------------------------------------------------------------------
@@ -307,6 +317,25 @@ export async function myRole() {
 // Admin helpers (RLS-authoritative; *_manage_admin / registrations_admin_all)
 // Thin table wrappers for later admin phases — no admin UI here.
 // ---------------------------------------------------------------------------
+
+export function adminGetEvent(eventId) {
+  return toResult(() => getSupabase().from("events")
+    .select("id, name, event_date, location").eq("id", eventId).maybeSingle());
+}
+
+export function adminListVacancies(eventId, page = 0) {
+  return toResult(() => getSupabase().from("vacancies")
+    .select("id, company_name, vacancy_title, number_of_vacancies, created_at")
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: false }).order("id", { ascending: true })
+    .range(page * 25, page * 25 + 25));
+}
+
+export function adminImportVacancies(eventId, rows) {
+  // One atomic request. Stable preview IDs make retries safe after a lost response.
+  return toResult(() => getSupabase().from("vacancies")
+    .upsert(rows.map(row => ({ ...row, event_id: eventId })), { onConflict: "id", ignoreDuplicates: true }));
+}
 
 export function adminListEvents() {
   return toResult(() =>
@@ -392,6 +421,23 @@ export function adminListRegistrations({ eventId, limit = 200 } = {}) {
 
 export function adminListProfiles() {
   return toResult(() => getSupabase().rpc("admin_list_profiles"));
+}
+
+// Fetch every page; never export a silently truncated management list.
+export async function adminListAllEventRegistrations(eventId) {
+  const rows = [];
+  for (;;) {
+    const result = await toResult(() => getSupabase()
+      .from("registrations")
+      .select("id, event_id, form_id, registration_number, first_name, middle_name, last_name, suffix, email, mobile_number, form_data, status, registered_at")
+      .eq("event_id", eventId)
+      .order("registered_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(rows.length, rows.length + 499));
+    if (!result.ok) return result;
+    if (!result.data?.length) return ok(rows);
+    rows.push(...result.data);
+  }
 }
 
 export function adminUpdateProfileRole(profileId, role) {

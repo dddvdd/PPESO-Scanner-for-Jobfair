@@ -65,6 +65,7 @@ export default function StaffAccount() {
     <section className="page">
       <p className="page-kicker">Account</p>
       <h1 className="page-title">Change password</h1>
+      <Link className="btn btn--primary btn--small" to="/staff/interviews">Interview Status</Link>
       <p className="page-lead">
         Signed in as <strong>{user?.email ?? "unknown"}</strong> ({role ?? "no role"}).
       </p>
