@@ -84,6 +84,11 @@ export default function ClassificationCardGroup({
 }) {
   const groupId = useId();
   const selected = trio.find((key) => answers[key] === "yes") ?? null;
+  const isNotApplicable = trio.every((key) => answers[key] === "no");
+
+  function handleNotApplicable() {
+    for (const key of trio) onChange(key, "no");
+  }
 
   return (
     <div className="field">
@@ -145,6 +150,41 @@ export default function ClassificationCardGroup({
             </label>
           );
         })}
+        {hideRequired && (
+          <label
+            className={`choice-card ${isNotApplicable ? "choice-card--selected" : ""} ${
+              disabled ? "choice-card--disabled" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name={`${groupId}-classification`}
+              value="not_applicable"
+              checked={isNotApplicable && !selected}
+              disabled={disabled}
+              onChange={handleNotApplicable}
+            />
+            <span className="choice-card-text">Not Applicable</span>
+            <span className="choice-check" aria-hidden="true">
+              {isNotApplicable && !selected && (
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <path
+                    d="M4 12.5l5.5 5.5L20 6.5"
+                    stroke="#ffffff"
+                    strokeWidth="3.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </span>
+          </label>
+        )}
       </div>
       {hasError && (
         <p id={`${groupId}-error`} role="alert" className="field-error">
