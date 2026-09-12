@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { listInterviewApplicants, saveInterviewStatus } from "../lib/api.js";
+import { listInterviewApplicants, saveInterviewStatus, listEventVacancies } from "../lib/api.js";
 import "./InterviewStatus.css";
 
 const STATUSES = ["Not Qualified", "Qualified", "Near Hires", "HOTS"];
@@ -15,11 +15,30 @@ function InterviewModal({ applicant, onClose, onSaved }) {
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [vacancies, setVacancies] = useState([]);
+
   useEffect(() => {
     const node = dialog.current;
     node.showModal();
     return () => node.close();
   }, []);
+
+  useEffect(() => {
+    if (!applicant.event_id) return;
+    listEventVacancies(applicant.event_id).then(result => {
+      if (result.ok && result.data?.status === "ok") {
+        setVacancies(result.data.vacancies ?? []);
+      }
+    });
+  }, [applicant.event_id]);
+
+  const companies = [...new Set(vacancies.map(v => v.company_name))].sort();
+  const positions = vacancies
+    .filter(v => !company.trim() || v.company_name.toLowerCase() === company.trim().toLowerCase())
+    .map(v => v.vacancy_title)
+    .filter((t, i, arr) => arr.indexOf(t) === i)
+    .sort();
+
   async function submit(event) {
     event.preventDefault();
     if (savingRef.current) return;
@@ -32,6 +51,7 @@ function InterviewModal({ applicant, onClose, onSaved }) {
     if (!result.ok) { setError(result.error.message); return; }
     onSaved();
   }
+
   return <dialog ref={dialog} className="interview-dialog" aria-labelledby="interview-modal-title" onCancel={event => { event.preventDefault(); if (!savingRef.current) onClose(); }}>
     <h2 id="interview-modal-title">Interview status</h2>
     <p><strong>{applicant.applicant_name}</strong><br />{applicant.event_name}</p>
@@ -44,8 +64,41 @@ function InterviewModal({ applicant, onClose, onSaved }) {
       </p>)}
     </details>}
     <form className="form-stack" onSubmit={submit}>
-      <div className="field"><label htmlFor="interview-company">Company</label><input autoFocus id="interview-company" maxLength={500} required value={company} disabled={saving} onChange={e => setCompany(e.target.value)} /></div>
-      <div className="field"><label htmlFor="interview-position">Position</label><input id="interview-position" maxLength={500} required value={position} disabled={saving} onChange={e => setPosition(e.target.value)} /></div>
+      <div className="field">
+        <label htmlFor="interview-company">Company</label>
+        <input
+          autoFocus
+          id="interview-company"
+          list="interview-company-list"
+          maxLength={500}
+          required
+          value={company}
+          disabled={saving}
+          onChange={e => { setCompany(e.target.value); setPosition(""); }}
+        />
+        {companies.length > 0 && (
+          <datalist id="interview-company-list">
+            {companies.map(c => <option key={c} value={c} />)}
+          </datalist>
+        )}
+      </div>
+      <div className="field">
+        <label htmlFor="interview-position">Position</label>
+        <input
+          id="interview-position"
+          list="interview-position-list"
+          maxLength={500}
+          required
+          value={position}
+          disabled={saving}
+          onChange={e => setPosition(e.target.value)}
+        />
+        {positions.length > 0 && (
+          <datalist id="interview-position-list">
+            {positions.map(p => <option key={p} value={p} />)}
+          </datalist>
+        )}
+      </div>
       <div className="field"><label htmlFor="interview-status">Status</label><select id="interview-status" required value={status} disabled={saving} onChange={e => setStatus(e.target.value)}>
         <option value="">Choose a status</option>{STATUSES.map(value => <option key={value} value={value}>{statusLabel(value)}</option>)}
       </select></div>

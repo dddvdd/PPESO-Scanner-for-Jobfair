@@ -4,6 +4,7 @@ const BASE_FIELDS = [
   ["last_name", "Last name"], ["suffix", "Suffix"],
   ["email", "Email"], ["mobile_number", "Mobile number"],
   ["status", "Status"], ["registered_at", "Registered at"],
+  ["entry_source", "Entry source"], ["recorded_by", "Recorded by (account ID)"],
 ];
 
 export function registrationColumns(fields, rows) {

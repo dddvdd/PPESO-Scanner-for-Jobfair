@@ -13,6 +13,7 @@ const AdminPage = lazy(() => import("./pages/AdminPage.jsx"));
 const EventRegistrantsPage = lazy(() => import("./pages/EventRegistrantsPage.jsx"));
 const VacanciesPage = lazy(() => import("./pages/VacanciesPage.jsx"));
 const InterviewStatus = lazy(() => import("./pages/InterviewStatus.jsx"));
+const WalkInApplicants = lazy(() => import("./pages/WalkInApplicants.jsx"));
 
 function NotFound() {
   return (
@@ -107,6 +108,7 @@ export default function App() {
             </StaffRoute>
           } />
           <Route path="/staff/interviews" element={<StaffRoute><Suspense fallback={<p role="status">Loading interviews…</p>}><InterviewStatus /></Suspense></StaffRoute>} />
+          <Route path="/staff/walk-ins" element={<StaffRoute><Suspense fallback={<p role="status">Loading walk-in form...</p>}><WalkInApplicants /></Suspense></StaffRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

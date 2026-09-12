@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { performCheckIn, staffLookup } from "../lib/api.js";
+import { adminRecordLateCheckIn, performCheckIn, staffLookup } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { describeScanOutcome, getDeviceId, isValidTicketToken } from "../lib/scannerUtils.js";
 import "./StaffScanner.css";
 
 const READER_ELEMENT_ID = "qr-reader-region";
-const TOKEN_PATTERN = /^[0-9a-f]{48}$/;
 
 function PauseIcon() {
   return (
@@ -55,7 +54,7 @@ function AlertIcon() {
  * production pipeline. Inert in normal operation.
  */
 export default function StaffScanner() {
-  const { signOut, user } = useAuth();
+  const { signOut, user, isAdmin } = useAuth();
   const signedInEmail = typeof user?.email === "string" ? user.email : "";
   const [cameraState, setCameraState] = useState("initializing"); // initializing | active | paused | permission | unavailable | insecure
   const [scanOutcome, setScanOutcome] = useState(null);
@@ -67,55 +66,86 @@ export default function StaffScanner() {
   const [checkingInToken, setCheckingInToken] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const searchDebounceRef = useRef(null);
+  const searchRequestRef = useRef(0);
+  const confirmedCheckInsRef = useRef(new Map());
+  const [manualOutcome, setManualOutcome] = useState(null);
+  const [lateEntry, setLateEntry] = useState(null);
+  const [lateReason, setLateReason] = useState("");
 
   const runSearch = useCallback(async (queryText = "") => {
     const trimmed = typeof queryText === "string" ? queryText.trim() : "";
+    const requestId = ++searchRequestRef.current;
     setIsSearching(true);
     try {
       const res = await staffLookup(trimmed);
+      if (requestId !== searchRequestRef.current) return;
       if (res.ok) {
-        setSearchResults(res.data?.results ?? []);
+        setSearchResults((res.data?.results ?? []).map((row) => ({
+          ...row,
+          ...(confirmedCheckInsRef.current.get(row.registrationNumber) ?? {}),
+        })));
       } else {
         setSearchResults([]);
       }
     } finally {
-      setIsSearching(false);
-      setSearchHasRun(true);
+      if (requestId === searchRequestRef.current) {
+        setIsSearching(false);
+        setSearchHasRun(true);
+      }
     }
   }, []);
 
   useEffect(() => {
     runSearch("");
+    return () => {
+      clearTimeout(searchDebounceRef.current);
+      searchRequestRef.current += 1;
+    };
   }, [runSearch]);
 
   const handleSearchChange = (e) => {
     const val = e.target.value;
     setSearchQuery(val);
+    searchRequestRef.current += 1;
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
       runSearch(val);
     }, 300);
   };
 
-  const handleManualCheckIn = async (item) => {
-    if (!item.ticketToken) return;
+  function recordCheckIn(result) {
+    const data = result.ok ? result.data : null;
+    if (!data || !["success", "already_checked_in"].includes(data.status) || !data.checkedInAt) return;
+    const confirmed = { checkedInAt: data.checkedInAt,
+      ...(data.attendanceDate ? { attendanceDate: data.attendanceDate, isLateCheckIn: true } : {}) };
+    confirmedCheckInsRef.current.set(data.registrationNumber, confirmed);
+    setSearchResults((rows) => rows.map((row) =>
+      row.registrationNumber === data.registrationNumber
+        ? { ...row, ...confirmed }
+        : row
+    ));
+  }
+
+  const handleManualCheckIn = async (item, late = false) => {
+    if (late && (!isAdmin || !lateReason.trim())) return;
+    if (processingRef.current || (!late && !item.ticketToken) || item.checkedInAt) return;
+    processingRef.current = true;
     setCheckingInToken(item.ticketToken);
     setProcessing(true);
+    setManualOutcome(null);
     try {
-      const result = await performCheckIn(item.ticketToken, deviceIdentifierRef.current);
-      resultActiveRef.current = true;
-      setScanOutcome(describeScanOutcome(result));
-      if (result.ok && (result.data?.status === "success" || result.data?.status === "already_checked_in")) {
-        const checkedInAtTime = result.data?.checkedInAt || new Date().toISOString();
-        setSearchResults((prev) =>
-          prev.map((r) =>
-            r.registrationNumber === item.registrationNumber
-              ? { ...r, checkedInAt: checkedInAtTime }
-              : r
-          )
-        );
+      const result = late
+        ? await adminRecordLateCheckIn(item.registrationNumber, lateReason, deviceIdentifierRef.current)
+        : await performCheckIn(item.ticketToken, deviceIdentifierRef.current);
+      const outcome = describeScanOutcome(result);
+      setManualOutcome({ registrationNumber: item.registrationNumber, ...outcome });
+      recordCheckIn(result);
+      if (late && result.ok && ["success", "already_checked_in"].includes(result.data?.status)) {
+        setLateEntry(null);
+        setLateReason("");
       }
     } finally {
+      processingRef.current = false;
       setCheckingInToken(null);
       setProcessing(false);
     }
@@ -407,7 +437,7 @@ export default function StaffScanner() {
     day: "numeric",
     year: "numeric",
   });
-  const todayIsoDate = new Date().toISOString().split("T")[0];
+  const todayIsoDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 
   return (
     <div className="sc-page">
@@ -446,6 +476,9 @@ export default function StaffScanner() {
 
         {menuOpen && (
           <div className="sc-menu-panel" role="menu" aria-label="Staff actions">
+            <Link className="sc-btn sc-btn--ghost sc-menu-item" to="/staff/walk-ins" onClick={() => setMenuOpen(false)}>
+              Walk-in applicants
+            </Link>
             <Link className="sc-btn sc-btn--ghost sc-menu-item" to="/staff/interviews" onClick={() => setMenuOpen(false)}>
               Interview Status
             </Link>
@@ -547,6 +580,21 @@ export default function StaffScanner() {
           </button>
         </div>
 
+        {isAdmin && lateEntry && (
+          <form className="sc-search-section" onSubmit={(event) => { event.preventDefault(); handleManualCheckIn(lateEntry, true); }}>
+            <h2 className="sc-search-title">Record late check-in</h2>
+            <p>Confirm {lateEntry.applicantName} ({lateEntry.registrationNumber}) attended {lateEntry.eventName || "the event"} on {lateEntry.eventDate}.</p>
+            <p>The attendance date, your admin account, today's recording time, and reason will be saved.</p>
+            <label htmlFor="late-check-in-reason">Reason / attendance evidence</label>
+            <textarea id="late-check-in-reason" className="sc-search-input" autoFocus required maxLength={1000}
+              value={lateReason} onChange={(event) => setLateReason(event.target.value)} disabled={processing} />
+            <button className="sc-btn sc-btn--primary" type="submit" disabled={processing || !lateReason.trim()}>
+              {processing ? "Recording..." : "Confirm attendance and record"}
+            </button>
+            <button className="sc-btn sc-btn--ghost" type="button" disabled={processing} onClick={() => setLateEntry(null)}>Cancel</button>
+          </form>
+        )}
+
         <div className="sc-search-section">
           <div className="sc-search-header">
             <h2 className="sc-search-title">
@@ -583,7 +631,7 @@ export default function StaffScanner() {
             <div className="sc-search-list">
               {searchResults.map((item, idx) => {
                 const isCheckedIn = Boolean(item.checkedInAt);
-                const isRowBusy = checkingInToken === item.ticketToken;
+                const isRowBusy = checkingInToken !== null && checkingInToken === item.ticketToken;
                 const isDifferentDate = Boolean(item.eventDate && item.eventDate !== todayIsoDate);
 
                 return (
@@ -596,7 +644,7 @@ export default function StaffScanner() {
                       </span>
                       {isCheckedIn ? (
                         <span className="sc-registrant-status sc-registrant-status--checkedin">
-                          ✓ Checked in at{" "}
+                          {item.isLateCheckIn ? "Recorded at" : "✓ Checked in at"}{" "}
                           {new Date(item.checkedInAt).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
@@ -609,11 +657,25 @@ export default function StaffScanner() {
                       ) : (
                         <span className="sc-registrant-status sc-registrant-status--pending">Not checked in</span>
                       )}
+                      {item.isLateCheckIn && (
+                        <span className="sc-registrant-status">Attendance: {item.attendanceDate} — {item.entrySource === "post_event_walk_in" ? "Post-event walk-in" : "Recorded late by admin"}</span>
+                      )}
+                      {manualOutcome?.registrationNumber === item.registrationNumber && (
+                        <p className="sc-registrant-status" role="status">
+                          {manualOutcome.title}
+                          {manualOutcome.detail ? ` ${manualOutcome.detail}` : ""}
+                        </p>
+                      )}
                     </div>
                     <div className="sc-registrant-action">
                       {isCheckedIn ? (
                         <button type="button" className="sc-row-btn sc-row-btn--done" disabled>
                           Checked In
+                        </button>
+                      ) : isDifferentDate && isAdmin && item.eventDate < todayIsoDate ? (
+                        <button type="button" className="sc-row-btn sc-row-btn--checkin"
+                          disabled={processing} onClick={() => { setLateEntry(item); setLateReason(""); }}>
+                          Record late check-in
                         </button>
                       ) : isDifferentDate ? (
                         <button

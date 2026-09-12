@@ -201,6 +201,19 @@ export async function performCheckIn(ticketToken, deviceIdentifier) {
   });
 }
 
+export async function adminRecordLateCheckIn(registrationNumber, reason, deviceIdentifier) {
+  const result = await toResult(() => getSupabase().rpc("admin_record_late_check_in", {
+    p_registration_number: text(registrationNumber),
+    p_reason: text(reason),
+    p_device_identifier: nonEmptyTextOrNull(deviceIdentifier),
+  }));
+  if (!result.ok) return result;
+  const d = result.data ?? {};
+  return ok({ status: d.status ?? "error", registrationNumber: d.registration_number,
+    applicantName: d.applicant_name, checkedInAt: d.checked_in_at,
+    attendanceDate: d.attendance_date });
+}
+
 /** Authorized registration lookup for scanner/admin use. Staff-only in DB. */
 export async function staffLookup(query) {
   const result = await toResult(() =>
@@ -213,6 +226,9 @@ export async function staffLookup(query) {
     ? d.results.map((row) => ({
         registrationNumber: row.registration_number ?? null,
         ticketToken: row.ticket_token ?? null,
+        entrySource: row.entry_source ?? "pre_registration",
+        attendanceDate: row.attendance_date ?? null,
+        isLateCheckIn: row.is_late_check_in === true,
         applicantName: row.applicant_name ?? null,
         email: row.email ?? null,
         eventName: row.event_name ?? null,
@@ -346,6 +362,49 @@ export function adminListEvents() {
   );
 }
 
+export function adminCountEventCheckIns(eventId) {
+  return toResult(async () => {
+    const { count, error } = await getSupabase()
+      .from("check_ins")
+      .select("id, registrations!inner(event_id)", { count: "exact", head: true })
+      .eq("registrations.event_id", eventId)
+      .eq("status", "success");
+    return { data: count, error };
+  });
+}
+
+export function adminCountEventRegistrations(eventId) {
+  return toResult(async () => {
+    const { count, error } = await getSupabase()
+      .from("registrations")
+      .select("id", { count: "exact", head: true })
+      .eq("entry_source", "pre_registration")
+      .eq("event_id", eventId);
+    return { data: count, error };
+  });
+}
+
+export function listWalkInEvents() {
+  return toResult(() => getSupabase().rpc("staff_walk_in_events"));
+}
+
+export function getWalkInForm(eventId) {
+  return toResult(() => getSupabase().rpc("staff_walk_in_form", { p_event_id: eventId }));
+}
+
+export function listEventVacancies(eventId) {
+  return toResult(() => getSupabase().rpc("staff_event_vacancies", { p_event_id: eventId }));
+}
+
+export function recordWalkIn(eventId, fields, formId, formData) {
+  return toResult(() => getSupabase().rpc("staff_record_walk_in", {
+    p_event_id: eventId, p_form_id: formId, p_form_data: formData,
+    p_first_name: text(fields.firstName), p_middle_name: nonEmptyTextOrNull(fields.middleName),
+    p_last_name: text(fields.lastName), p_suffix: nonEmptyTextOrNull(fields.suffix),
+    p_email: text(fields.email), p_mobile_number: text(fields.mobileNumber),
+  }));
+}
+
 export function adminCreateEvent(fields) {
   return toResult(() => getSupabase().from("events").insert(fields).select().single());
 }
@@ -411,7 +470,7 @@ export function adminListRegistrations({ eventId, limit = 200 } = {}) {
   let query = getSupabase()
     .from("registrations")
     .select(
-      "id, event_id, form_id, registration_number, first_name, middle_name, last_name, suffix, email, mobile_number, form_data, status, registered_at"
+      "id, event_id, form_id, registration_number, first_name, middle_name, last_name, suffix, email, mobile_number, form_data, status, registered_at, entry_source, recorded_by"
     )
     .order("registered_at", { ascending: false })
     .limit(limit);
@@ -429,7 +488,7 @@ export async function adminListAllEventRegistrations(eventId) {
   for (;;) {
     const result = await toResult(() => getSupabase()
       .from("registrations")
-      .select("id, event_id, form_id, registration_number, first_name, middle_name, last_name, suffix, email, mobile_number, form_data, status, registered_at")
+      .select("id, event_id, form_id, registration_number, first_name, middle_name, last_name, suffix, email, mobile_number, form_data, status, registered_at, entry_source, recorded_by")
       .eq("event_id", eventId)
       .order("registered_at", { ascending: true })
       .order("id", { ascending: true })

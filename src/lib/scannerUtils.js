@@ -40,6 +40,10 @@ export function describeScanOutcome(result) {
           registrationNumber: d.registrationNumber ?? null,
           checkedInAt: d.checkedInAt ?? null,
         };
+      case "reason_required":
+        return { tone: "invalid", title: "Enter a reason for this late check-in (up to 1,000 characters)." };
+      case "not_past_event":
+        return { tone: "invalid", title: "Late check-in is only available for past events." };
       case "invalid_ticket":
         return { tone: "invalid", title: "Invalid ticket" };
       case "event_date_mismatch":

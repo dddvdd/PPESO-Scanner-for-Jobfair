@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   adminCreateEvent,
+  adminCountEventCheckIns,
+  adminCountEventRegistrations,
   adminCreateForm,
   adminCreateUser,
   adminDeleteEvent,
@@ -175,6 +177,8 @@ export default function AdminPage() {
 
 function EventsPanel({ pushUndo }) {
   const [events, setEvents] = useState(null); // null = loading
+  const [checkInCounts, setCheckInCounts] = useState({});
+  const [registrationCounts, setRegistrationCounts] = useState({});
   const [error, setError] = useState(null);
   const [notice, flash] = useFlash();
   const [saving, setSaving] = useState(false);
@@ -190,6 +194,18 @@ function EventsPanel({ pushUndo }) {
     if (result.ok) {
       setEvents(result.data ?? []);
       setError(null);
+      setCheckInCounts({});
+      setRegistrationCounts({});
+      const counts = await Promise.all((result.data ?? []).map(async (event) => {
+        const [count, registrations] = await Promise.all([
+          adminCountEventCheckIns(event.id),
+          adminCountEventRegistrations(event.id),
+        ]);
+        return { id: event.id, checkIns: count.ok ? count.data : null,
+          registrations: registrations.ok ? registrations.data : null };
+      }));
+      setCheckInCounts(Object.fromEntries(counts.map((count) => [count.id, count.checkIns])));
+      setRegistrationCounts(Object.fromEntries(counts.map((count) => [count.id, count.registrations])));
     } else {
       setError(result.error.message);
     }
@@ -473,6 +489,20 @@ function EventsPanel({ pushUndo }) {
           return (
             <li key={ev.id} className="glass-card event-card" style={{ minWidth: 0 }}>
               <h2>{ev.name}</h2>
+              <p className="event-meta" aria-live="polite">
+                Total pre-registrants: <strong>{registrationCounts[ev.id] === undefined
+                  ? "Loading…"
+                  : registrationCounts[ev.id] === null
+                    ? "Unavailable"
+                    : registrationCounts[ev.id].toLocaleString()}</strong>
+              </p>
+              <p className="event-meta" aria-live="polite">
+                Total check-ins: <strong>{checkInCounts[ev.id] === undefined
+                  ? "Loading…"
+                  : checkInCounts[ev.id] === null
+                    ? "Unavailable"
+                    : checkInCounts[ev.id].toLocaleString()}</strong>
+              </p>
               <p className="event-meta">
                 {ev.event_date ?? "No date"}
                 {ev.location ? ` · ${ev.location}` : ""}
