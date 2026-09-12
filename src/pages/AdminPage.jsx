@@ -109,7 +109,6 @@ export default function AdminPage() {
     <section className="page">
       <p className="page-kicker">Admin</p>
       <h1 className="page-title">Event &amp; staff administration</h1>
-      <Link className="btn btn--ghost btn--small" style={{ alignSelf: "flex-start" }} to="/admin/vacancies">Vacancies</Link>
 
       <div
         className="link-row"
