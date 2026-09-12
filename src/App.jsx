@@ -46,8 +46,6 @@ function HamburgerMenu() {
   const isAdmin = role === "admin";
   const isStaff = role === "staff" || isAdmin;
 
-  if (!isLoggedIn) return null;
-
   return (
     <>
       <button
@@ -67,10 +65,12 @@ function HamburgerMenu() {
         <div className="nav-overlay" onClick={close} />
       )}
 
-      <nav ref={panelRef} className={`nav-drawer${open ? " nav-drawer--open" : ""}`} aria-label="Staff navigation">
-        <div className="nav-drawer-header">
-          <span className="nav-drawer-role">{isAdmin ? "Admin" : "Staff"}</span>
-        </div>
+      <nav ref={panelRef} className={`nav-drawer${open ? " nav-drawer--open" : ""}`} aria-label="Navigation">
+        {isLoggedIn && (
+          <div className="nav-drawer-header">
+            <span className="nav-drawer-role">{isAdmin ? "Admin" : "Staff"}</span>
+          </div>
+        )}
 
         <div className="nav-drawer-section">
           <span className="nav-drawer-label">Public</span>
@@ -78,12 +78,14 @@ function HamburgerMenu() {
           <NavLink className="nav-drawer-link" to="/retrieve-ticket" onClick={close}>My Ticket</NavLink>
         </div>
 
-        <div className="nav-drawer-section">
-          <span className="nav-drawer-label">Staff Tools</span>
-          <NavLink className="nav-drawer-link" to="/staff/scanner" onClick={close}>Scanner</NavLink>
-          <NavLink className="nav-drawer-link" to="/staff/interviews" onClick={close}>Interview Status</NavLink>
-          <NavLink className="nav-drawer-link" to="/staff/walk-ins" onClick={close}>Walk-in Applicants</NavLink>
-        </div>
+        {isLoggedIn && isStaff && (
+          <div className="nav-drawer-section">
+            <span className="nav-drawer-label">Staff Tools</span>
+            <NavLink className="nav-drawer-link" to="/staff/scanner" onClick={close}>Scanner</NavLink>
+            <NavLink className="nav-drawer-link" to="/staff/interviews" onClick={close}>Interview Status</NavLink>
+            <NavLink className="nav-drawer-link" to="/staff/walk-ins" onClick={close}>Walk-in Applicants</NavLink>
+          </div>
+        )}
 
         {isAdmin && (
           <div className="nav-drawer-section">
@@ -93,9 +95,15 @@ function HamburgerMenu() {
           </div>
         )}
 
-        <div className="nav-drawer-section">
-          <NavLink className="nav-drawer-link" to="/staff/account" onClick={close}>Account</NavLink>
-        </div>
+        {isLoggedIn ? (
+          <div className="nav-drawer-section">
+            <NavLink className="nav-drawer-link" to="/staff/account" onClick={close}>Account</NavLink>
+          </div>
+        ) : (
+          <div className="nav-drawer-section">
+            <NavLink className="nav-drawer-link" to="/staff/login" onClick={close}>Staff Login</NavLink>
+          </div>
+        )}
       </nav>
     </>
   );
@@ -132,9 +140,6 @@ export default function App() {
         <nav className="app-nav" aria-label="Main">
           <NavLink className="nav-brand" to="/">
             Job Fair
-          </NavLink>
-          <NavLink className="nav-link" to="/retrieve-ticket">
-            My Ticket
           </NavLink>
           <HamburgerMenu />
         </nav>
