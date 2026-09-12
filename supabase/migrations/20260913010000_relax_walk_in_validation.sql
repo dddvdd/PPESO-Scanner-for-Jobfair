@@ -9,10 +9,11 @@ declare
  v_event public.events%rowtype; v_form uuid; v_reg uuid; v_number text;
  v_recorded_at timestamptz;
  v_clean jsonb := '{}'::jsonb; v_field record; v_value jsonb; v_text text;
- v_first text := coalesce(nullif(btrim(p_first_name),''), 'Walk-in');
- v_last text := coalesce(nullif(btrim(p_last_name),''), 'Applicant');
+ v_first text := coalesce(nullif(btrim(p_first_name),''), '');
+ v_last text := coalesce(nullif(btrim(p_last_name),''), '');
  v_email text := nullif(btrim(p_email),'');
  v_mobile text := nullif(btrim(p_mobile_number),'');
+ v_eff_email text;
 begin
  if auth.uid() is null or not public.is_staff() then return jsonb_build_object('status','forbidden'); end if;
  select * into v_event from public.events where id=p_event_id for update;
@@ -63,12 +64,13 @@ begin
    end if;
  end if;
  v_number := 'JF'||to_char(now() at time zone 'Asia/Manila','YYYYMMDD')||'-'||lpad(nextval('public.registration_number_seq')::text,6,'0');
+ v_eff_email := coalesce(v_email, v_number || '@walkin.local');
  begin
    insert into public.registrations(event_id,form_id,registration_number,ticket_token,
      first_name,middle_name,last_name,suffix,email,mobile_number,entry_source,recorded_by,form_data)
    values(p_event_id,coalesce(v_form,v_event.id),v_number,encode(gen_random_bytes(24),'hex'),
      v_first,nullif(btrim(p_middle_name),''),v_last,nullif(btrim(p_suffix),''),
-     coalesce(v_email,v_number||'@walkin.local'),coalesce(v_mobile,'0000000000'),'post_event_walk_in',auth.uid(),v_clean)
+     v_eff_email,coalesce(v_mobile,''),'post_event_walk_in',auth.uid(),v_clean)
    returning id into v_reg;
  exception when unique_violation then
    return jsonb_build_object('status','duplicate_registration');
