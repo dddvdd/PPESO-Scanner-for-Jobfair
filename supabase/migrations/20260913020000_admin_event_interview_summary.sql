@@ -17,7 +17,11 @@ begin
     'not_qualified_female', count(*) filter (where lower(r.form_data->>'sex') = 'female' and i.status = 'Not Qualified'),
     'not_qualified_male', count(*) filter (where lower(r.form_data->>'sex') = 'male' and i.status = 'Not Qualified'),
     'total_female', count(*) filter (where lower(r.form_data->>'sex') = 'female'),
-    'total_male', count(*) filter (where lower(r.form_data->>'sex') = 'male')
+    'total_male', count(*) filter (where lower(r.form_data->>'sex') = 'male'),
+    'hots_total', count(*) filter (where i.status = 'HOTS'),
+    'near_hire_total', count(*) filter (where i.status = 'Near Hires'),
+    'qualified_total', count(*) filter (where i.status = 'Qualified'),
+    'not_qualified_total', count(*) filter (where i.status = 'Not Qualified')
   ) into v_result
   from public.interview_statuses i
   join public.registrations r on r.id = i.registration_id

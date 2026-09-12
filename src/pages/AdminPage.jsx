@@ -580,6 +580,7 @@ function EventsPanel({ pushUndo }) {
                         <th>Interview Result</th>
                         <th>Female</th>
                         <th>Male</th>
+                        <th>Total</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -587,26 +588,31 @@ function EventsPanel({ pushUndo }) {
                         <td>HOTS</td>
                         <td>{(interviewSummary[ev.id].hots_female ?? 0).toLocaleString()}</td>
                         <td>{(interviewSummary[ev.id].hots_male ?? 0).toLocaleString()}</td>
+                        <td>{(interviewSummary[ev.id].hots_total ?? 0).toLocaleString()}</td>
                       </tr>
                       <tr>
                         <td>Near Hire</td>
                         <td>{(interviewSummary[ev.id].near_hire_female ?? 0).toLocaleString()}</td>
                         <td>{(interviewSummary[ev.id].near_hire_male ?? 0).toLocaleString()}</td>
+                        <td>{(interviewSummary[ev.id].near_hire_total ?? 0).toLocaleString()}</td>
                       </tr>
                       <tr>
                         <td>Qualified</td>
                         <td>{(interviewSummary[ev.id].qualified_female ?? 0).toLocaleString()}</td>
                         <td>{(interviewSummary[ev.id].qualified_male ?? 0).toLocaleString()}</td>
+                        <td>{(interviewSummary[ev.id].qualified_total ?? 0).toLocaleString()}</td>
                       </tr>
                       <tr>
                         <td>Not Qualified</td>
                         <td>{(interviewSummary[ev.id].not_qualified_female ?? 0).toLocaleString()}</td>
                         <td>{(interviewSummary[ev.id].not_qualified_male ?? 0).toLocaleString()}</td>
+                        <td>{(interviewSummary[ev.id].not_qualified_total ?? 0).toLocaleString()}</td>
                       </tr>
                       <tr className="category-table-total">
                         <td>Total</td>
                         <td>{(interviewSummary[ev.id].total_female ?? 0).toLocaleString()}</td>
                         <td>{(interviewSummary[ev.id].total_male ?? 0).toLocaleString()}</td>
+                        <td>{((interviewSummary[ev.id].total_female ?? 0) + (interviewSummary[ev.id].total_male ?? 0)).toLocaleString()}</td>
                       </tr>
                     </tbody>
                   </table>
