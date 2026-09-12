@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import EventPicker from "./pages/EventPicker.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
@@ -7,6 +7,7 @@ import RetrieveTicket from "./pages/RetrieveTicket.jsx";
 import StaffLogin from "./pages/StaffLogin.jsx";
 import StaffAccount from "./pages/StaffAccount.jsx";
 import StaffRoute from "./components/StaffRoute.jsx";
+import { useAuth } from "./context/AuthContext.jsx";
 
 const StaffScanner = lazy(() => import("./pages/StaffScanner.jsx"));
 const AdminPage = lazy(() => import("./pages/AdminPage.jsx"));
@@ -14,6 +15,91 @@ const EventRegistrantsPage = lazy(() => import("./pages/EventRegistrantsPage.jsx
 const VacanciesPage = lazy(() => import("./pages/VacanciesPage.jsx"));
 const InterviewStatus = lazy(() => import("./pages/InterviewStatus.jsx"));
 const WalkInApplicants = lazy(() => import("./pages/WalkInApplicants.jsx"));
+
+function HamburgerMenu() {
+  const { session, role, roleLoading } = useAuth();
+  const [open, setOpen] = useState(false);
+  const panelRef = useRef(null);
+  const btnRef = useRef(null);
+
+  const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e) {
+      if (panelRef.current && !panelRef.current.contains(e.target) && btnRef.current && !btnRef.current.contains(e.target)) {
+        close();
+      }
+    }
+    function onKeyDown(e) {
+      if (e.key === "Escape") close();
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, close]);
+
+  const isLoggedIn = Boolean(session);
+  const isAdmin = role === "admin";
+  const isStaff = role === "staff" || isAdmin;
+
+  if (!isLoggedIn) return null;
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        className="nav-hamburger"
+        type="button"
+        aria-label="Menu"
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          {open ? <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></> : <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>}
+        </svg>
+      </button>
+
+      {open && (
+        <div className="nav-overlay" onClick={close} />
+      )}
+
+      <nav ref={panelRef} className={`nav-drawer${open ? " nav-drawer--open" : ""}`} aria-label="Staff navigation">
+        <div className="nav-drawer-header">
+          <span className="nav-drawer-role">{isAdmin ? "Admin" : "Staff"}</span>
+        </div>
+
+        <div className="nav-drawer-section">
+          <span className="nav-drawer-label">Public</span>
+          <NavLink className="nav-drawer-link" to="/" onClick={close}>Register</NavLink>
+          <NavLink className="nav-drawer-link" to="/retrieve-ticket" onClick={close}>My Ticket</NavLink>
+        </div>
+
+        <div className="nav-drawer-section">
+          <span className="nav-drawer-label">Staff Tools</span>
+          <NavLink className="nav-drawer-link" to="/staff/scanner" onClick={close}>Scanner</NavLink>
+          <NavLink className="nav-drawer-link" to="/staff/interviews" onClick={close}>Interview Status</NavLink>
+          <NavLink className="nav-drawer-link" to="/staff/walk-ins" onClick={close}>Walk-in Applicants</NavLink>
+        </div>
+
+        {isAdmin && (
+          <div className="nav-drawer-section">
+            <span className="nav-drawer-label">Admin</span>
+            <NavLink className="nav-drawer-link" to="/admin" onClick={close}>Admin Console</NavLink>
+            <NavLink className="nav-drawer-link" to="/admin/vacancies" onClick={close}>Vacancies</NavLink>
+          </div>
+        )}
+
+        <div className="nav-drawer-section">
+          <NavLink className="nav-drawer-link" to="/staff/account" onClick={close}>Account</NavLink>
+        </div>
+      </nav>
+    </>
+  );
+}
 
 function NotFound() {
   return (
@@ -50,6 +136,7 @@ export default function App() {
           <NavLink className="nav-link" to="/retrieve-ticket">
             My Ticket
           </NavLink>
+          <HamburgerMenu />
         </nav>
       </header>
 

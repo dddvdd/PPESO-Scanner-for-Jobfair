@@ -176,6 +176,127 @@ body::after {
   border-color: var(--edge);
 }
 
+/* --- Hamburger button ------------------------------------------------- */
+
+.nav-hamburger {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--glass-strong);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}
+
+.nav-hamburger:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* --- Overlay --------------------------------------------------------- */
+
+.nav-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* --- Drawer ---------------------------------------------------------- */
+
+.nav-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 70;
+  width: min(300px, 85vw);
+  height: 100dvh;
+  overflow-y: auto;
+  background: rgba(13, 16, 32, 0.96);
+  border-left: 1px solid var(--edge);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  backdrop-filter: blur(32px) saturate(180%);
+  box-shadow: -18px 0 48px rgba(0, 0, 0, 0.5);
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.nav-drawer--open {
+  transform: translateX(0);
+}
+
+.nav-drawer-header {
+  padding: 20px 20px 14px;
+  border-bottom: 1px solid var(--edge);
+}
+
+.nav-drawer-role {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(10, 132, 255, 0.16);
+  border: 1px solid rgba(10, 132, 255, 0.35);
+  color: var(--blue-soft);
+}
+
+.nav-drawer-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--edge);
+}
+
+.nav-drawer-section:last-child {
+  border-bottom: none;
+}
+
+.nav-drawer-label {
+  display: block;
+  padding: 4px 20px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.nav-drawer-link {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 10px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.nav-drawer-link:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nav-drawer-link.active {
+  color: var(--blue-soft);
+  background: rgba(10, 132, 255, 0.12);
+  border-left: 3px solid var(--blue);
+  padding-left: 17px;
+}
+
 main {
   display: block;
 }
