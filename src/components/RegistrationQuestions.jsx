@@ -111,6 +111,7 @@ export default function RegistrationQuestions({ fields, answers, fieldErrors, su
                 hasError={trioHasError}
                 disabled={submitting}
                 onChange={handleAnswerChange}
+                hideRequired={hideRequired}
               />
             )}
             {(cardsAfter ?? []).map((field) => (

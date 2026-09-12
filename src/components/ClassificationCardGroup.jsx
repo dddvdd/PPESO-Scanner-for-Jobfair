@@ -80,6 +80,7 @@ export default function ClassificationCardGroup({
   hasError,
   disabled,
   onChange,
+  hideRequired,
 }) {
   const groupId = useId();
   const selected = trio.find((key) => answers[key] === "yes") ?? null;
@@ -87,7 +88,7 @@ export default function ClassificationCardGroup({
   return (
     <div className="field">
       <span id={`${groupId}-label`} className="group-label">
-        Which best describes you? *
+        Which best describes you?{hideRequired ? "" : " *"}
       </span>
       <div
         role="radiogroup"
