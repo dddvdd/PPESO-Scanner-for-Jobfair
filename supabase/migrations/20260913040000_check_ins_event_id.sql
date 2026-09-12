@@ -45,14 +45,6 @@ begin
       'applicant_name', concat_ws(' ', v_reg.first_name, v_reg.last_name));
   end if;
 
-  if v_reg.event_date is not null and v_reg.event_date <> (now() at time zone 'Asia/Manila')::date then
-    return jsonb_build_object('status', 'event_date_mismatch',
-      'registration_number', v_reg.registration_number,
-      'applicant_name', concat_ws(' ', v_reg.first_name, v_reg.last_name),
-      'event_name', v_reg.event_name,
-      'event_date', v_reg.event_date);
-  end if;
-
   begin
     insert into public.check_ins (registration_id, scanned_by, device_identifier, status, event_id)
     values (v_reg.id, auth.uid(), nullif(btrim(coalesce(p_device_identifier, '')), ''), 'success',
