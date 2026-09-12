@@ -118,10 +118,11 @@ export default function WalkInApplicants() {
             <legend>Applicant details</legend>
             {["firstName", "middleName", "lastName", "suffix", "email", "mobileNumber"].map(name =>
               <IdentityField key={name} name={name} value={draft[name]} error={identityErrors[name]} disabled={saving}
+                hideRequired
                 onChange={(key, value) => setDraft(current => ({ ...current, [key]: value }))} />)}
           </fieldset>
           <RegistrationQuestions fields={fields} answers={answers} fieldErrors={fieldErrors}
-            submitting={saving} handleAnswerChange={changeAnswer} />
+            submitting={saving} handleAnswerChange={changeAnswer} hideRequired />
         </>}
         <label className="choice">
           <input type="checkbox" required checked={confirmed} disabled={saving || !selected || !formReady} onChange={event => setConfirmed(event.target.checked)} />

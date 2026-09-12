@@ -4,7 +4,7 @@ import AddressFieldsGroup from "./AddressFieldsGroup.jsx";
 import ClassificationCardGroup from "./ClassificationCardGroup.jsx";
 import { resolveExclusiveGroups } from "../lib/registrationForm.js";
 
-export default function RegistrationQuestions({ fields, answers, fieldErrors, submitting, handleAnswerChange }) {
+export default function RegistrationQuestions({ fields, answers, fieldErrors, submitting, handleAnswerChange, hideRequired }) {
   const exclusiveTrio = useMemo(() => resolveExclusiveGroups(fields)[0] ?? null, [fields]);
   const trioLabels = useMemo(() => {
     if (!exclusiveTrio) return {};
@@ -99,6 +99,7 @@ export default function RegistrationQuestions({ fields, answers, fieldErrors, su
                 error={fieldErrors[field.field_key]}
                 disabled={submitting}
                 onChange={handleAnswerChange}
+                hideRequired={hideRequired}
               />
             ))}
             {exclusiveTrio && (
@@ -119,6 +120,7 @@ export default function RegistrationQuestions({ fields, answers, fieldErrors, su
                 error={fieldErrors[field.field_key]}
                 disabled={submitting}
                 onChange={handleAnswerChange}
+                hideRequired={hideRequired}
               />
             ))}
           </fieldset>

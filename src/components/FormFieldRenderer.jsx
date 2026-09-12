@@ -43,7 +43,7 @@ function optionsOf(field) {
   return Array.isArray(field?.options) ? field.options : [];
 }
 
-export function IdentityField({ name, value, error, disabled, onChange }) {
+export function IdentityField({ name, value, error, disabled, onChange, hideRequired }) {
   const type = name === "email" ? "email" : "text";
   const inputMode = name === "mobileNumber" ? "tel" : undefined;
   return (
@@ -68,7 +68,7 @@ export function IdentityField({ name, value, error, disabled, onChange }) {
   );
 }
 
-export default function FormFieldRenderer({ field, value, error, disabled, onChange }) {
+export default function FormFieldRenderer({ field, value, error, disabled, onChange, hideRequired }) {
   const options = optionsOf(field);
   const id = `field-${field.field_key}`;
   const describedBy = error ? `${id}-error` : undefined;
@@ -236,7 +236,7 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
     <div>
       <label id={`${id}-label`} htmlFor={field.field_type === "short_text" || field.field_type === "long_text" || field.field_type === "number" || field.field_type === "date" || field.field_type === "dropdown" ? id : undefined}>
         {field.label}
-        {field.required ? " *" : ""}
+        {field.required && !hideRequired ? " *" : ""}
       </label>
       {control}
       {error && (
