@@ -397,6 +397,10 @@ export function listWalkInEvents() {
   return toResult(() => getSupabase().rpc("staff_walk_in_events"));
 }
 
+export function listAllEvents() {
+  return toResult(() => getSupabase().rpc("staff_list_events"));
+}
+
 export function getWalkInForm(eventId) {
   return toResult(() => getSupabase().rpc("staff_walk_in_form", { p_event_id: eventId }));
 }

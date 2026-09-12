@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { adminRecordLateCheckIn, performCheckIn, staffLookup } from "../lib/api.js";
+import { adminRecordLateCheckIn, performCheckIn, staffLookup, listAllEvents } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { describeScanOutcome, getDeviceId, isValidTicketToken } from "../lib/scannerUtils.js";
 import "./StaffScanner.css";
@@ -52,6 +52,34 @@ function AlertIcon() {
  * { detail: { text, force } })) feeds a decoded string through the exact
  * production pipeline. Inert in normal operation.
  */
+function EarlyCheckInForm({ item, events, setEvents, eventId, setEventId, processing, onSubmit, onCancel }) {
+  useEffect(() => {
+    if (events.length > 0) return;
+    listAllEvents().then(result => {
+      if (result.ok && result.data?.events) setEvents(result.data.events);
+    });
+  }, [events.length, setEvents]);
+
+  return (
+    <form className="sc-search-section" onSubmit={(e) => { e.preventDefault(); if (eventId) onSubmit(); }}>
+      <h2 className="sc-search-title">Select event for early check-in</h2>
+      <p><strong>{item.applicantName}</strong> ({item.registrationNumber}) is registered for <strong>{item.eventName}</strong> on {item.eventDate}.</p>
+      <p>Which event are they attending?</p>
+      <label htmlFor="early-checkin-event">Event</label>
+      <select id="early-checkin-event" className="sc-search-input" required value={eventId} onChange={e => setEventId(e.target.value)} disabled={processing}>
+        <option value="">Select an event…</option>
+        {events.map(ev => (
+          <option key={ev.id} value={ev.id}>{ev.name}{ev.event_date ? ` (${ev.event_date})` : ""}{ev.location ? ` — ${ev.location}` : ""}</option>
+        ))}
+      </select>
+      <button className="sc-btn sc-btn--primary" type="submit" disabled={processing || !eventId}>
+        {processing ? "Checking in…" : "Confirm check-in"}
+      </button>
+      <button className="sc-btn sc-btn--ghost" type="button" disabled={processing} onClick={onCancel}>Cancel</button>
+    </form>
+  );
+}
+
 export default function StaffScanner() {
   const { signOut, user, isAdmin } = useAuth();
   const signedInEmail = typeof user?.email === "string" ? user.email : "";
@@ -69,6 +97,9 @@ export default function StaffScanner() {
   const [manualOutcome, setManualOutcome] = useState(null);
   const [lateEntry, setLateEntry] = useState(null);
   const [lateReason, setLateReason] = useState("");
+  const [earlyEntry, setEarlyEntry] = useState(null);
+  const [earlyEventId, setEarlyEventId] = useState("");
+  const [earlyEvents, setEarlyEvents] = useState([]);
 
   const runSearch = useCallback(async (queryText = "") => {
     const trimmed = typeof queryText === "string" ? queryText.trim() : "";
@@ -124,7 +155,7 @@ export default function StaffScanner() {
     ));
   }
 
-  const handleManualCheckIn = async (item, late = false) => {
+  const handleManualCheckIn = async (item, late = false, eventId = null) => {
     if (late && (!isAdmin || !lateReason.trim())) return;
     if (processingRef.current || (!late && !item.ticketToken) || item.checkedInAt) return;
     processingRef.current = true;
@@ -134,7 +165,7 @@ export default function StaffScanner() {
     try {
       const result = late
         ? await adminRecordLateCheckIn(item.registrationNumber, lateReason, deviceIdentifierRef.current)
-        : await performCheckIn(item.ticketToken, deviceIdentifierRef.current);
+        : await performCheckIn(item.ticketToken, deviceIdentifierRef.current, eventId);
       const outcome = describeScanOutcome(result);
       setManualOutcome({ registrationNumber: item.registrationNumber, ...outcome });
       recordCheckIn(result);
@@ -145,6 +176,9 @@ export default function StaffScanner() {
       } else if (late && result.ok && ["success", "already_checked_in"].includes(result.data?.status)) {
         setLateEntry(null);
         setLateReason("");
+      } else if (result.ok && ["success", "already_checked_in"].includes(result.data?.status)) {
+        setEarlyEntry(null);
+        setEarlyEventId("");
       }
     } finally {
       processingRef.current = false;
@@ -573,6 +607,19 @@ export default function StaffScanner() {
           </form>
         )}
 
+        {earlyEntry && (
+          <EarlyCheckInForm
+            item={earlyEntry}
+            events={earlyEvents}
+            setEvents={setEarlyEvents}
+            eventId={earlyEventId}
+            setEventId={setEarlyEventId}
+            processing={processing}
+            onSubmit={() => handleManualCheckIn(earlyEntry, false, earlyEventId)}
+            onCancel={() => { setEarlyEntry(null); setEarlyEventId(""); }}
+          />
+        )}
+
         <div className="sc-search-section">
           <div className="sc-search-header">
             <h2 className="sc-search-title">
@@ -660,6 +707,15 @@ export default function StaffScanner() {
                         <button type="button" className="sc-row-btn sc-row-btn--checkin"
                           disabled={processing} onClick={() => { setLateEntry(item); setLateReason(""); }}>
                           Record late check-in
+                        </button>
+                      ) : isFutureEvent ? (
+                        <button
+                          type="button"
+                          className="sc-row-btn sc-row-btn--checkin"
+                          disabled={isRowBusy || processing || !item.ticketToken}
+                          onClick={() => { setEarlyEntry(item); setEarlyEventId(""); }}
+                        >
+                          {isRowBusy ? "Checking In…" : "Check In"}
                         </button>
                       ) : (
                         <button
