@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { listInterviewApplicants, saveInterviewStatus, listEventVacancies } from "../lib/api.js";
@@ -6,6 +6,86 @@ import "./InterviewStatus.css";
 
 const STATUSES = ["Not Qualified", "Qualified", "Near Hires", "HOTS"];
 const statusLabel = value => value === "HOTS" ? "Hired-On-The-Spot (HOTS)" : value;
+
+function AutocompleteInput({ id, label, value, onChange, options, autoFocus, disabled, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value);
+  const wrapRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => { setQuery(value); }, [value]);
+
+  const filtered = options.filter(opt =>
+    opt.toLowerCase().includes(query.trim().toLowerCase())
+  );
+
+  const highlightMatch = useCallback((text) => {
+    if (!query.trim()) return text;
+    const idx = text.toLowerCase().indexOf(query.trim().toLowerCase());
+    if (idx < 0) return text;
+    return <>
+      {text.slice(0, idx)}<mark className="autocomplete-hl">{text.slice(idx, idx + query.trim().length)}</mark>{text.slice(idx + query.trim().length)}
+    </>;
+  }, [query]);
+
+  useEffect(() => {
+    function onPointerDown(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
+
+  return (
+    <div className="autocomplete-wrap" ref={wrapRef}>
+      <label htmlFor={id}>{label}</label>
+      <input
+        ref={inputRef}
+        id={id}
+        type="text"
+        maxLength={500}
+        required
+        autoFocus={autoFocus}
+        disabled={disabled}
+        placeholder={placeholder}
+        value={query}
+        onFocus={() => { if (filtered.length) setOpen(true); }}
+        onChange={e => {
+          const v = e.target.value;
+          setQuery(v);
+          onChange(v);
+          setOpen(true);
+        }}
+        onKeyDown={e => {
+          if (e.key === "Escape") setOpen(false);
+          if (e.key === "ArrowDown" && open) {
+            e.preventDefault();
+            wrapRef.current?.querySelector(".autocomplete-opt")?.focus();
+          }
+        }}
+        aria-autocomplete="list"
+        aria-expanded={open && filtered.length > 0}
+        aria-controls={`${id}-listbox`}
+      />
+      {open && filtered.length > 0 && (
+        <ul id={`${id}-listbox`} className="autocomplete-listbox" role="listbox">
+          {filtered.map(opt => (
+            <li
+              key={opt}
+              className="autocomplete-opt"
+              role="option"
+              tabIndex={0}
+              onMouseDown={e => { e.preventDefault(); onChange(opt); setOpen(false); }}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onChange(opt); setOpen(false); } }}
+            >
+              {highlightMatch(opt)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function InterviewModal({ applicant, onClose, onSaved }) {
   const dialog = useRef(null);
@@ -65,39 +145,27 @@ function InterviewModal({ applicant, onClose, onSaved }) {
     </details>}
     <form className="form-stack" onSubmit={submit}>
       <div className="field">
-        <label htmlFor="interview-company">Company</label>
-        <input
-          autoFocus
+        <AutocompleteInput
           id="interview-company"
-          list="interview-company-list"
-          maxLength={500}
-          required
-          value={company}
+          label="Company"
+          autoFocus
           disabled={saving}
-          onChange={e => { setCompany(e.target.value); setPosition(""); }}
+          value={company}
+          onChange={v => { setCompany(v); setPosition(""); }}
+          options={companies}
+          placeholder={companies.length ? "Type or select a company…" : "Type a company name"}
         />
-        {companies.length > 0 && (
-          <datalist id="interview-company-list">
-            {companies.map(c => <option key={c} value={c} />)}
-          </datalist>
-        )}
       </div>
       <div className="field">
-        <label htmlFor="interview-position">Position</label>
-        <input
+        <AutocompleteInput
           id="interview-position"
-          list="interview-position-list"
-          maxLength={500}
-          required
-          value={position}
+          label="Position"
           disabled={saving}
-          onChange={e => setPosition(e.target.value)}
+          value={position}
+          onChange={setPosition}
+          options={positions}
+          placeholder={positions.length ? "Type or select a position…" : "Type a position"}
         />
-        {positions.length > 0 && (
-          <datalist id="interview-position-list">
-            {positions.map(p => <option key={p} value={p} />)}
-          </datalist>
-        )}
       </div>
       <div className="field"><label htmlFor="interview-status">Status</label><select id="interview-status" required value={status} disabled={saving} onChange={e => setStatus(e.target.value)}>
         <option value="">Choose a status</option>{STATUSES.map(value => <option key={value} value={value}>{statusLabel(value)}</option>)}

@@ -1,3 +1,5 @@
+drop function if exists public.staff_interview_applicants(text, integer);
+
 create or replace function public.staff_interview_applicants(p_query text default '', p_page integer default 0)
 returns table (registration_id uuid, registration_number text, applicant_name text,
   event_id uuid, event_name text, checked_in_at timestamptz, interviews jsonb)

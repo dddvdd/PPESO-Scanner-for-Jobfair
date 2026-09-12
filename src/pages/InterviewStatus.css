@@ -58,3 +58,25 @@
 .interview-dialog::backdrop { background: rgba(0,0,0,.65); }
 .interview-dialog select option { color: #111; background: #fff; }
 .interview-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.autocomplete-wrap { position: relative; }
+.autocomplete-wrap > label { display: block; margin-bottom: 7px; color: rgba(245,245,247,.9); font-size: 14px; font-weight: 600; }
+.autocomplete-wrap input { width: 100%; min-height: 48px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.08); color: #f5f5f7; font: inherit; font-size: 16px; transition: border-color .2s, background .2s, box-shadow .2s; box-sizing: border-box; }
+.autocomplete-wrap input::placeholder { color: rgba(245,245,247,.42); }
+.autocomplete-wrap input:focus { outline: none; border-color: #0a84ff; background: rgba(255,255,255,.11); box-shadow: 0 0 0 3px rgba(10,132,255,.3); }
+
+.autocomplete-listbox {
+  position: absolute; left: 0; right: 0; top: 100%; z-index: 10;
+  margin: 4px 0 0; padding: 6px 0; list-style: none;
+  max-height: 200px; overflow-y: auto;
+  background: #2e3350; border: 1px solid #555c7d; border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.45);
+}
+.autocomplete-opt {
+  padding: 10px 14px; cursor: pointer; color: #f5f7ff; font-size: 15px;
+  transition: background .12s;
+}
+.autocomplete-opt:hover, .autocomplete-opt:focus {
+  background: rgba(10,132,255,.25); outline: none;
+}
+.autocomplete-hl { color: #5ac8fa; background: none; font-weight: 600; }
