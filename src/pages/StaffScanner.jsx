@@ -138,7 +138,11 @@ export default function StaffScanner() {
       const outcome = describeScanOutcome(result);
       setManualOutcome({ registrationNumber: item.registrationNumber, ...outcome });
       recordCheckIn(result);
-      if (late && result.ok && ["success", "already_checked_in"].includes(result.data?.status)) {
+      if (result.ok && result.data?.status === "event_past" && isAdmin) {
+        setLateEntry(item);
+        setLateReason("");
+        setManualOutcome(null);
+      } else if (late && result.ok && ["success", "already_checked_in"].includes(result.data?.status)) {
         setLateEntry(null);
         setLateReason("");
       }
@@ -320,7 +324,18 @@ export default function StaffScanner() {
           `rpc:done:${result.ok ? result.data?.status : `err:${result.error?.kind}`}`
         );
         resultActiveRef.current = true;
-        setScanOutcome(describeScanOutcome(result));
+        const outcome = describeScanOutcome(result);
+        setScanOutcome(outcome);
+        if (result.ok && result.data?.status === "event_past" && isAdmin) {
+          setLateEntry({
+            registrationNumber: result.data.registrationNumber,
+            applicantName: result.data.applicantName,
+            ticketToken: decodedText,
+            eventName: result.data.eventName,
+            eventDate: result.data.eventDate,
+          });
+          setLateReason("");
+        }
       } finally {
         processingRef.current = false;
         setProcessing(false);

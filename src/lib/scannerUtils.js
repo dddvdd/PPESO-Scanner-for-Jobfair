@@ -46,6 +46,15 @@ export function describeScanOutcome(result) {
         return { tone: "invalid", title: "Late check-in is only available for past events." };
       case "invalid_ticket":
         return { tone: "invalid", title: "Invalid ticket" };
+      case "event_past":
+        return {
+          tone: "past",
+          title: "Event already happened",
+          applicantName: d.applicantName ?? null,
+          registrationNumber: d.registrationNumber ?? null,
+          eventName: d.eventName ?? null,
+          eventDate: d.eventDate ?? null,
+        };
       case "event_date_mismatch":
         return {
           tone: "invalid",
