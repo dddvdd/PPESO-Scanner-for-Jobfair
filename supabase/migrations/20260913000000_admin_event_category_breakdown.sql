@@ -35,6 +35,17 @@ begin
     'walkin_prereg', count(*) filter (where r.entry_source = 'post_event_walk_in'),
     'walkin_checkin', count(*) filter (where r.entry_source = 'post_event_walk_in' and exists (
       select 1 from public.check_ins c where c.registration_id = r.id and c.status = 'success'
+    )),
+    'youth_prereg', count(*) filter (where r.entry_source = 'pre_registration'
+      and r.form_data->>'date_of_birth' is not null
+      and r.form_data->>'date_of_birth' != ''
+      and (date_part('year', age(r.form_data->>'date_of_birth'::date))) <= 24),
+    'youth_checkin', count(*) filter (
+      and r.form_data->>'date_of_birth' is not null
+      and r.form_data->>'date_of_birth' != ''
+      and (date_part('year', age(r.form_data->>'date_of_birth'::date))) <= 24
+      and exists (
+      select 1 from public.check_ins c where c.registration_id = r.id and c.status = 'success'
     ))
   ) into v_result
   from public.registrations r
