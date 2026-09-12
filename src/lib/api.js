@@ -180,11 +180,12 @@ export async function retrieveTicket(registrationNumber, verificationEmail) {
  * error}); race safety lives entirely in the database. No optimistic
  * success may ever be derived client-side.
  */
-export async function performCheckIn(ticketToken, deviceIdentifier) {
+export async function performCheckIn(ticketToken, deviceIdentifier, eventId) {
   const result = await toResult(() =>
     getSupabase().rpc("perform_check_in", {
       p_ticket_token: text(ticketToken),
       p_device_identifier: nonEmptyTextOrNull(deviceIdentifier),
+      p_event_id: eventId || null,
     })
   );
   if (!result.ok) return result;
@@ -366,8 +367,8 @@ export function adminCountEventCheckIns(eventId) {
   return toResult(async () => {
     const { count, error } = await getSupabase()
       .from("check_ins")
-      .select("id, registrations!inner(event_id)", { count: "exact", head: true })
-      .eq("registrations.event_id", eventId)
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", eventId)
       .eq("status", "success");
     return { data: count, error };
   });
