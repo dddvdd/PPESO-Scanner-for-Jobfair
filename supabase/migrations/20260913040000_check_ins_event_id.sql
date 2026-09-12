@@ -243,7 +243,7 @@ begin
     select r.*, public.parse_date_safe(r.form_data->>'date_of_birth') as dob_parsed
     from public.registrations r where r.event_id = p_event_id
   ), tagged as (
-    select b.*, case when b.dob_parsed is not null then extract(year from age(b.dob_parsed)) <= 24 else false end as is_youth
+    select b.*, case when b.dob_parsed is not null then extract(year from age(b.dob_parsed)) <= 30 else false end as is_youth
     from base b
   )
   select jsonb_build_object(

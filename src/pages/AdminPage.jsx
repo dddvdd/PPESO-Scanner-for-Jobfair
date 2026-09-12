@@ -559,7 +559,7 @@ function EventsPanel({ pushUndo }) {
                         <td>{(categoryData[ev.id].walkin_checkin ?? 0).toLocaleString()}</td>
                       </tr>
                       <tr>
-                        <td>Youth (24 &amp; below)</td>
+                        <td>Youth (30 &amp; below)</td>
                         <td>{(categoryData[ev.id].youth_prereg ?? 0).toLocaleString()}</td>
                         <td>{(categoryData[ev.id].youth_checkin ?? 0).toLocaleString()}</td>
                       </tr>
