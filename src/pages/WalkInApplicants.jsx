@@ -79,12 +79,6 @@ export default function WalkInApplicants() {
   async function submit(event) {
     event.preventDefault();
     if (busy.current || !selected || !confirmed || !formReady) return;
-    const idErrors = validateIdentity(draft);
-    const questionErrors = validateAnswers(fields, answers);
-    setIdentityErrors(idErrors); setFieldErrors(questionErrors);
-    if (Object.keys(idErrors).length || Object.keys(questionErrors).length) {
-      setError("Please complete the highlighted registration fields."); return;
-    }
     busy.current = true; setSaving(true); setError(null); setSuccess(null);
     try {
       const result = await recordWalkIn(eventId, draft, formState.form.id, buildFormData(answers));
