@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { adminRecordLateCheckIn, performCheckIn, staffLookup } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { describeScanOutcome, getDeviceId, isValidTicketToken } from "../lib/scannerUtils.js";
@@ -64,7 +63,6 @@ export default function StaffScanner() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchHasRun, setSearchHasRun] = useState(false);
   const [checkingInToken, setCheckingInToken] = useState(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const searchDebounceRef = useRef(null);
   const searchRequestRef = useRef(0);
   const confirmedCheckInsRef = useRef(new Map());
@@ -448,19 +446,6 @@ export default function StaffScanner() {
       <div className="sc-shell">
         <div className="sc-topbar">
           <div className="sc-header-left">
-            <button
-              type="button"
-              className="sc-menu-toggle"
-              onClick={() => setMenuOpen((open) => !open)}
-              aria-label={menuOpen ? "Close staff actions" : "Open staff actions"}
-              aria-expanded={menuOpen}
-            >
-              <span className="sc-menu-icon" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </span>
-            </button>
             <div>
               <p className="sc-kicker">
                 Today: {todayDateFormatted}{signedInEmail ? ` · ${signedInEmail}` : ""}
@@ -473,28 +458,6 @@ export default function StaffScanner() {
             {pillLabel}
           </span>
         </div>
-
-        {menuOpen && (
-          <div className="sc-menu-panel" role="menu" aria-label="Staff actions">
-            <Link className="sc-btn sc-btn--ghost sc-menu-item" to="/staff/walk-ins" onClick={() => setMenuOpen(false)}>
-              Walk-in applicants
-            </Link>
-            <Link className="sc-btn sc-btn--ghost sc-menu-item" to="/staff/interviews" onClick={() => setMenuOpen(false)}>
-              Interview Status
-            </Link>
-            <Link
-              to="/staff/account"
-              className="sc-btn sc-btn--ghost sc-menu-item"
-              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", fontSize: 14 }}
-              onClick={() => setMenuOpen(false)}
-            >
-              Account
-            </Link>
-            <button type="button" className="sc-btn sc-btn--ghost sc-menu-item" disabled={processing} onClick={() => { setMenuOpen(false); signOut(); }}>
-              Sign Out
-            </button>
-          </div>
-        )}
 
         {notice ? (
           <div className={`sc-notice sc-notice--${notice.variant}`} role="alert">

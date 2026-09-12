@@ -297,6 +297,17 @@ body::after {
   padding-left: 17px;
 }
 
+.nav-drawer-btn {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  color: var(--red);
+}
+
 main {
   display: block;
 }

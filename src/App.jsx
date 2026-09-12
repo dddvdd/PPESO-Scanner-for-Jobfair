@@ -17,7 +17,7 @@ const InterviewStatus = lazy(() => import("./pages/InterviewStatus.jsx"));
 const WalkInApplicants = lazy(() => import("./pages/WalkInApplicants.jsx"));
 
 function HamburgerMenu() {
-  const { session, role, roleLoading } = useAuth();
+  const { session, role, roleLoading, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const panelRef = useRef(null);
   const btnRef = useRef(null);
@@ -98,6 +98,7 @@ function HamburgerMenu() {
         {isLoggedIn ? (
           <div className="nav-drawer-section">
             <NavLink className="nav-drawer-link" to="/staff/account" onClick={close}>Account</NavLink>
+            <button className="nav-drawer-link nav-drawer-btn" type="button" onClick={() => { close(); signOut(); }}>Sign Out</button>
           </div>
         ) : (
           <div className="nav-drawer-section">
