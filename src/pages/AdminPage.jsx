@@ -5,6 +5,7 @@ import {
   adminCountEventCheckIns,
   adminCountEventRegistrations,
   adminEventCategoryBreakdown,
+  adminEventInterviewSummary,
   adminCreateForm,
   adminCreateUser,
   adminDeleteEvent,
@@ -181,6 +182,7 @@ function EventsPanel({ pushUndo }) {
   const [checkInCounts, setCheckInCounts] = useState({});
   const [registrationCounts, setRegistrationCounts] = useState({});
   const [categoryData, setCategoryData] = useState({});
+  const [interviewSummary, setInterviewSummary] = useState({});
   const [error, setError] = useState(null);
   const [notice, flash] = useFlash();
   const [saving, setSaving] = useState(false);
@@ -199,19 +201,23 @@ function EventsPanel({ pushUndo }) {
       setCheckInCounts({});
       setRegistrationCounts({});
       setCategoryData({});
+      setInterviewSummary({});
       const counts = await Promise.all((result.data ?? []).map(async (event) => {
-        const [count, registrations, breakdown] = await Promise.all([
+        const [count, registrations, breakdown, interview] = await Promise.all([
           adminCountEventCheckIns(event.id),
           adminCountEventRegistrations(event.id),
           adminEventCategoryBreakdown(event.id),
+          adminEventInterviewSummary(event.id),
         ]);
         return { id: event.id, checkIns: count.ok ? count.data : null,
           registrations: registrations.ok ? registrations.data : null,
-          breakdown: breakdown.ok && breakdown.data?.status === "ok" ? breakdown.data.data : null };
+          breakdown: breakdown.ok && breakdown.data?.status === "ok" ? breakdown.data.data : null,
+          interview: interview.ok && interview.data?.status === "ok" ? interview.data.data : null };
       }));
       setCheckInCounts(Object.fromEntries(counts.map((count) => [count.id, count.checkIns])));
       setRegistrationCounts(Object.fromEntries(counts.map((count) => [count.id, count.registrations])));
       setCategoryData(Object.fromEntries(counts.map((count) => [count.id, count.breakdown])));
+      setInterviewSummary(Object.fromEntries(counts.map((count) => [count.id, count.interview])));
     } else {
       setError(result.error.message);
     }
@@ -561,6 +567,48 @@ function EventsPanel({ pushUndo }) {
                   Loading category data…
                 </p>
               )}
+
+              {interviewSummary[ev.id] ? (
+                <div className="category-table-wrap">
+                  <table className="category-table">
+                    <thead>
+                      <tr>
+                        <th>Interview Result</th>
+                        <th>Female</th>
+                        <th>Male</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>HOTS</td>
+                        <td>{(interviewSummary[ev.id].hots_female ?? 0).toLocaleString()}</td>
+                        <td>{(interviewSummary[ev.id].hots_male ?? 0).toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td>Near Hire</td>
+                        <td>{(interviewSummary[ev.id].near_hire_female ?? 0).toLocaleString()}</td>
+                        <td>{(interviewSummary[ev.id].near_hire_male ?? 0).toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td>Qualified</td>
+                        <td>{(interviewSummary[ev.id].qualified_female ?? 0).toLocaleString()}</td>
+                        <td>{(interviewSummary[ev.id].qualified_male ?? 0).toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td>Not Qualified</td>
+                        <td>{(interviewSummary[ev.id].not_qualified_female ?? 0).toLocaleString()}</td>
+                        <td>{(interviewSummary[ev.id].not_qualified_male ?? 0).toLocaleString()}</td>
+                      </tr>
+                      <tr className="category-table-total">
+                        <td>Total</td>
+                        <td>{(interviewSummary[ev.id].total_female ?? 0).toLocaleString()}</td>
+                        <td>{(interviewSummary[ev.id].total_male ?? 0).toLocaleString()}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                 <Link
                   className="btn btn--ghost btn--small"
