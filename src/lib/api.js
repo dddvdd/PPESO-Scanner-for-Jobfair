@@ -384,6 +384,10 @@ export function adminCountEventRegistrations(eventId) {
   });
 }
 
+export function adminEventCategoryBreakdown(eventId) {
+  return toResult(() => getSupabase().rpc("admin_event_category_breakdown", { p_event_id: eventId }));
+}
+
 export function listWalkInEvents() {
   return toResult(() => getSupabase().rpc("staff_walk_in_events"));
 }

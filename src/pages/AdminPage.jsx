@@ -4,6 +4,7 @@ import {
   adminCreateEvent,
   adminCountEventCheckIns,
   adminCountEventRegistrations,
+  adminEventCategoryBreakdown,
   adminCreateForm,
   adminCreateUser,
   adminDeleteEvent,
@@ -179,6 +180,7 @@ function EventsPanel({ pushUndo }) {
   const [events, setEvents] = useState(null); // null = loading
   const [checkInCounts, setCheckInCounts] = useState({});
   const [registrationCounts, setRegistrationCounts] = useState({});
+  const [categoryData, setCategoryData] = useState({});
   const [error, setError] = useState(null);
   const [notice, flash] = useFlash();
   const [saving, setSaving] = useState(false);
@@ -196,16 +198,20 @@ function EventsPanel({ pushUndo }) {
       setError(null);
       setCheckInCounts({});
       setRegistrationCounts({});
+      setCategoryData({});
       const counts = await Promise.all((result.data ?? []).map(async (event) => {
-        const [count, registrations] = await Promise.all([
+        const [count, registrations, breakdown] = await Promise.all([
           adminCountEventCheckIns(event.id),
           adminCountEventRegistrations(event.id),
+          adminEventCategoryBreakdown(event.id),
         ]);
         return { id: event.id, checkIns: count.ok ? count.data : null,
-          registrations: registrations.ok ? registrations.data : null };
+          registrations: registrations.ok ? registrations.data : null,
+          breakdown: breakdown.ok && breakdown.data?.status === "ok" ? breakdown.data.data : null };
       }));
       setCheckInCounts(Object.fromEntries(counts.map((count) => [count.id, count.checkIns])));
       setRegistrationCounts(Object.fromEntries(counts.map((count) => [count.id, count.registrations])));
+      setCategoryData(Object.fromEntries(counts.map((count) => [count.id, count.breakdown])));
     } else {
       setError(result.error.message);
     }
@@ -489,20 +495,6 @@ function EventsPanel({ pushUndo }) {
           return (
             <li key={ev.id} className="glass-card event-card" style={{ minWidth: 0 }}>
               <h2>{ev.name}</h2>
-              <p className="event-meta" aria-live="polite">
-                Total pre-registrants: <strong>{registrationCounts[ev.id] === undefined
-                  ? "Loading…"
-                  : registrationCounts[ev.id] === null
-                    ? "Unavailable"
-                    : registrationCounts[ev.id].toLocaleString()}</strong>
-              </p>
-              <p className="event-meta" aria-live="polite">
-                Total check-ins: <strong>{checkInCounts[ev.id] === undefined
-                  ? "Loading…"
-                  : checkInCounts[ev.id] === null
-                    ? "Unavailable"
-                    : checkInCounts[ev.id].toLocaleString()}</strong>
-              </p>
               <p className="event-meta">
                 {ev.event_date ?? "No date"}
                 {ev.location ? ` · ${ev.location}` : ""}
@@ -514,6 +506,61 @@ function EventsPanel({ pushUndo }) {
                 <span className="chip-dot" aria-hidden="true" />
                 {ev.status}
               </span>
+
+              {categoryData[ev.id] ? (
+                <div className="category-table-wrap">
+                  <table className="category-table">
+                    <thead>
+                      <tr>
+                        <th>Category</th>
+                        <th>Preregistrants</th>
+                        <th>Check-in</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="category-table-total">
+                        <td>Total</td>
+                        <td>{(categoryData[ev.id].total_prereg ?? 0).toLocaleString()}</td>
+                        <td>{(categoryData[ev.id].total_checkin ?? 0).toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td>PWD</td>
+                        <td>{(categoryData[ev.id].pwd_prereg ?? 0).toLocaleString()}</td>
+                        <td>{(categoryData[ev.id].pwd_checkin ?? 0).toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td>First-time Job seekers</td>
+                        <td>{(categoryData[ev.id].first_time_prereg ?? 0).toLocaleString()}</td>
+                        <td>{(categoryData[ev.id].first_time_checkin ?? 0).toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td>Returning OFW</td>
+                        <td>{(categoryData[ev.id].ofw_prereg ?? 0).toLocaleString()}</td>
+                        <td>{(categoryData[ev.id].ofw_checkin ?? 0).toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td>Returning workers</td>
+                        <td>{(categoryData[ev.id].worker_prereg ?? 0).toLocaleString()}</td>
+                        <td>{(categoryData[ev.id].worker_checkin ?? 0).toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td>Interested in Training</td>
+                        <td>{(categoryData[ev.id].training_prereg ?? 0).toLocaleString()}</td>
+                        <td>{(categoryData[ev.id].training_checkin ?? 0).toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td>Walk-in</td>
+                        <td>{(categoryData[ev.id].walkin_prereg ?? 0).toLocaleString()}</td>
+                        <td>{(categoryData[ev.id].walkin_checkin ?? 0).toLocaleString()}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="event-meta" aria-live="polite">
+                  Loading category data…
+                </p>
+              )}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                 <Link
                   className="btn btn--ghost btn--small"
