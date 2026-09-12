@@ -611,6 +611,8 @@ export default function StaffScanner() {
                 const isCheckedIn = Boolean(item.checkedInAt);
                 const isRowBusy = checkingInToken !== null && checkingInToken === item.ticketToken;
                 const isDifferentDate = Boolean(item.eventDate && item.eventDate !== todayIsoDate);
+                const isPastEvent = Boolean(item.eventDate && item.eventDate < todayIsoDate);
+                const isFutureEvent = Boolean(item.eventDate && item.eventDate > todayIsoDate);
 
                 return (
                   <div key={item.registrationNumber || item.email || idx} className="sc-registrant-row">
@@ -628,9 +630,13 @@ export default function StaffScanner() {
                             minute: "2-digit",
                           })}
                         </span>
-                      ) : isDifferentDate ? (
+                      ) : isPastEvent ? (
                         <span className="sc-registrant-status sc-registrant-status--mismatch">
-                          ⚠️ Event date ({item.eventDate}) is not today
+                          ⚠️ Event date ({item.eventDate}) already passed
+                        </span>
+                      ) : isFutureEvent ? (
+                        <span className="sc-registrant-status sc-registrant-status--mismatch">
+                          ⚠️ Event date ({item.eventDate}) — early check-in
                         </span>
                       ) : (
                         <span className="sc-registrant-status sc-registrant-status--pending">Not checked in</span>
@@ -650,19 +656,10 @@ export default function StaffScanner() {
                         <button type="button" className="sc-row-btn sc-row-btn--done" disabled>
                           Checked In
                         </button>
-                      ) : isDifferentDate && isAdmin && item.eventDate < todayIsoDate ? (
+                      ) : isPastEvent && isAdmin ? (
                         <button type="button" className="sc-row-btn sc-row-btn--checkin"
                           disabled={processing} onClick={() => { setLateEntry(item); setLateReason(""); }}>
                           Record late check-in
-                        </button>
-                      ) : isDifferentDate ? (
-                        <button
-                          type="button"
-                          className="sc-row-btn sc-row-btn--disabled"
-                          disabled
-                          title={`Event is scheduled for ${item.eventDate}, not today`}
-                        >
-                          Wrong Date
                         </button>
                       ) : (
                         <button
