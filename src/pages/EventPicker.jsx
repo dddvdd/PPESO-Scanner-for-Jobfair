@@ -17,7 +17,9 @@ export default function EventPicker() {
     listPublishedEvents().then((result) => {
       if (cancelled) return;
       if (result.ok) {
-        setEvents(result.data ?? []);
+        const today = new Date().toISOString().slice(0, 10);
+        const visible = (result.data ?? []).filter(e => !e.event_date || e.event_date >= today);
+        setEvents(visible);
         setStatus("ready");
       } else {
         setBanner(result.error);
