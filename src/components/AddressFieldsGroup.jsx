@@ -18,7 +18,7 @@ import {
  * parent therefore immediately re-scopes its children (PSGC lists are cached,
  * so re-scoping is instant). Selecting or clearing a parent resets children.
  */
-export default function AddressFieldsGroup({ keys, answers, errors, disabled, onChange }) {
+export default function AddressFieldsGroup({ keys, answers, errors, disabled, onChange, hideRequired }) {
   const provinceText = answers[keys.province] ?? "";
   const cityText = answers[keys.city] ?? "";
 
@@ -53,7 +53,7 @@ export default function AddressFieldsGroup({ keys, answers, errors, disabled, on
     <>
       <AddressCombobox
         id={`addr-${keys.province}`}
-        label="Province *"
+        label={`Province${hideRequired ? "" : " *"}`}
         placeholder="Start typing — e.g. Cagayan"
         value={provinceText}
         error={errors[keys.province]}
@@ -71,7 +71,7 @@ export default function AddressFieldsGroup({ keys, answers, errors, disabled, on
 
       <AddressCombobox
         id={`addr-${keys.city}`}
-        label="Municipality / City *"
+        label={`Municipality / City${hideRequired ? "" : " *"}`}
         placeholder={
           provinceText.trim() ? "Start typing — e.g. Tuguegarao City" : "Choose a province first"
         }
@@ -94,7 +94,7 @@ export default function AddressFieldsGroup({ keys, answers, errors, disabled, on
 
       <AddressCombobox
         id={`addr-${keys.barangay}`}
-        label="Barangay *"
+        label={`Barangay${hideRequired ? "" : " *"}`}
         placeholder={
           cityText.trim()
             ? "Start typing — e.g. Caritan Sur"

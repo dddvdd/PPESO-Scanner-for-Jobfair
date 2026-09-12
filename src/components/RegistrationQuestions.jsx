@@ -89,6 +89,7 @@ export default function RegistrationQuestions({ fields, answers, fieldErrors, su
                 errors={fieldErrors}
                 disabled={submitting}
                 onChange={handleAnswerChange}
+                hideRequired={hideRequired}
               />
             )}
             {(cardsBefore ?? cardlessFields).map((field) => (
