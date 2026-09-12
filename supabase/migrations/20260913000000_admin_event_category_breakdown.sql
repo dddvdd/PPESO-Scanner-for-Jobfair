@@ -40,8 +40,7 @@ begin
       and r.form_data->>'date_of_birth' is not null
       and r.form_data->>'date_of_birth' != ''
       and (date_part('year', age(r.form_data->>'date_of_birth'::date))) <= 24),
-    'youth_checkin', count(*) filter (
-      and r.form_data->>'date_of_birth' is not null
+    'youth_checkin', count(*) filter (where r.form_data->>'date_of_birth' is not null
       and r.form_data->>'date_of_birth' != ''
       and (date_part('year', age(r.form_data->>'date_of_birth'::date))) <= 24
       and exists (
