@@ -242,13 +242,13 @@ export async function staffLookup(query) {
   return ok({ status: d.status ?? "ok", results });
 }
 
-export function listInterviewApplicants(query, page) {
-  return toResult(() => getSupabase().rpc("staff_interview_applicants", { p_query: text(query), p_page: page }));
+export function listInterviewApplicants(query, page, eventId = null) {
+  return toResult(() => getSupabase().rpc("staff_interview_applicants", { p_query: text(query), p_page: page, p_event_id: eventId }));
 }
 
-export function saveInterviewStatus(registrationId, company, position, status) {
+export function saveInterviewStatus(registrationId, company, position, status, eventId) {
   return toResult(() => getSupabase().rpc("staff_save_interview_status", {
-    p_registration_id: registrationId, p_company: text(company), p_position: text(position), p_status: status,
+    p_registration_id: registrationId, p_company: text(company), p_position: text(position), p_status: status, p_event_id: eventId,
   }));
 }
 
@@ -596,4 +596,17 @@ export function adminRestoreProfile(row) {
   return toResult(() =>
     getSupabase().from("profiles").insert(row).select().single()
   );
+}
+
+export async function exportInterviewResults(eventId) {
+  const rows = [];
+  let after = null;
+  for (;;) {
+    const result = await toResult(() => getSupabase().rpc("staff_export_interview_results", { p_event_id: eventId, p_after: after }));
+    if (!result.ok) return result;
+    const batch = result.data ?? [];
+    rows.push(...batch);
+    if (batch.length < 500) return { ok: true, data: rows };
+    after = batch.at(-1).id;
+  }
 }

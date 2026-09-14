@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { listInterviewApplicants, saveInterviewStatus, listEventVacancies } from "../lib/api.js";
+import { listInterviewApplicants, saveInterviewStatus, listEventVacancies, listAllEvents, exportInterviewResults } from "../lib/api.js";
 import "./InterviewStatus.css";
+import { interviewResultsCsv, downloadInterviewCsv } from "../lib/interviewExport.js";
 
 const STATUSES = ["Not Qualified", "Qualified", "Near Hires", "HOTS"];
 const statusLabel = value => value === "HOTS" ? "Hired-On-The-Spot (HOTS)" : value;
@@ -126,7 +127,7 @@ function InterviewModal({ applicant, onClose, onSaved }) {
       setError("Enter a company, position, and interview status."); return;
     }
     savingRef.current = true; setSaving(true); setError(null);
-    const result = await saveInterviewStatus(applicant.registration_id, company, position, status);
+    const result = await saveInterviewStatus(applicant.registration_id, company, position, status, applicant.event_id);
     savingRef.current = false; setSaving(false);
     if (!result.ok) { setError(result.error.message); return; }
     onSaved();
@@ -136,7 +137,7 @@ function InterviewModal({ applicant, onClose, onSaved }) {
     <h2 id="interview-modal-title">Interview status</h2>
     <p><strong>{applicant.applicant_name}</strong><br />{applicant.event_name}</p>
     {applicant.interviews.length > 0 && <details>
-      <summary>Your saved interviews ({applicant.interviews.length})</summary>
+      <summary>Saved interviews ({applicant.interviews.length})</summary>
       {applicant.interviews.map(item => <p key={item.id}>
         <button type="button" className="btn btn--ghost btn--small" disabled={saving} onClick={() => { setCompany(item.company); setPosition(item.position); setStatus(item.status); }}>
           {item.company} · {item.position} · {statusLabel(item.status)}
@@ -170,7 +171,7 @@ function InterviewModal({ applicant, onClose, onSaved }) {
       <div className="field"><label htmlFor="interview-status">Status</label><select id="interview-status" required value={status} disabled={saving} onChange={e => setStatus(e.target.value)}>
         <option value="">Choose a status</option>{STATUSES.map(value => <option key={value} value={value}>{statusLabel(value)}</option>)}
       </select></div>
-      <p className="field-help">Saved to your account. Saving the same company and position updates your existing record.</p>
+      <p className="field-help">Shared with staff and admin. Saving the same company and position updates the result for this event. Use separate records for different companies or positions.</p>
       {error && <p role="alert" className="alert alert--error">{error}</p>}
       <div className="link-row"><button className="btn btn--primary" type="submit" disabled={saving}>{saving ? "Saving…" : "Save status"}</button><button className="btn btn--ghost" type="button" disabled={saving} onClick={onClose}>Cancel</button></div>
     </form>
@@ -178,7 +179,12 @@ function InterviewModal({ applicant, onClose, onSaved }) {
 }
 
 export default function InterviewStatus() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const eventId = searchParams.get("event") || "";
+  const [events, setEvents] = useState([]);
+  const [exporting, setExporting] = useState(false);
+  const exportRef = useRef(false);
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
@@ -190,16 +196,51 @@ export default function InterviewStatus() {
   useEffect(() => {
     let active = true;
     setRows(null); setError(null);
-    listInterviewApplicants(query, page).then(result => {
+    listInterviewApplicants(query, page, eventId || null).then(result => {
       if (!active) return;
       if (result.ok) setRows(result.data ?? []); else setError(result.error.message);
     });
     return () => { active = false; };
-  }, [query, page, refresh, user?.id]);
+  }, [query, page, refresh, user?.id, eventId]);
+  useEffect(() => {
+    let active = true;
+    listAllEvents().then(result => {
+      if (!active) return;
+      if (result.ok && result.data?.status === "ok") setEvents(result.data.events ?? []);
+      else setError(result.error?.message || "Could not load events.");
+    });
+    return () => { active = false; };
+  }, []);
+  useEffect(() => {
+    const reload = () => { if (document.visibilityState === "visible" && !selected) setRefresh(value => value + 1); };
+    const timer = setInterval(reload, 15000);
+    window.addEventListener("focus", reload);
+    return () => { clearInterval(timer); window.removeEventListener("focus", reload); };
+  }, [selected]);
+  async function exportCsv() {
+    if (!eventId || exportRef.current) return;
+    exportRef.current = true; setExporting(true); setNotice(null);
+    try {
+      const result = await exportInterviewResults(eventId);
+      if (!result.ok) throw new Error(result.error.message);
+      const eventName = events.find(event => event.id === eventId)?.name || eventId;
+      downloadInterviewCsv(eventName, interviewResultsCsv(eventName, result.data));
+      setNotice(`Exported ${result.data.length} interview results. Each company and position has a separate row.`);
+    } catch (error) { setNotice(`Export failed: ${error.message}`); }
+    finally { exportRef.current = false; setExporting(false); }
+  }
   return <section className="page interview-page">
     <Link to="/staff/scanner">Back to scanner</Link>
-    <p className="page-kicker">Staff</p><h1 className="page-title">Interview Status</h1>
-    <p className="page-lead">Checked-in applicants and interview records saved by {user?.email}.</p>
+    <p className="page-kicker">{role === "admin" ? "Admin" : "Staff"}</p><h1 className="page-title">Interview Status</h1>
+    <p className="page-lead">Shared interview results for checked-in applicants. Updates refresh every 15 seconds and when you return to this page.</p>
+    {role === "admin" && <Link to="/admin">Back to administration</Link>}
+    <div className="interview-search">
+      <div className="field"><label htmlFor="interview-event">Event</label><select id="interview-event" value={eventId} disabled={exporting} onChange={e => { setSearchParams(e.target.value ? { event: e.target.value } : {}); setPage(0); setNotice(null); }}>
+        <option value="">All events</option>{events.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
+      </select></div>
+      <button type="button" className="btn btn--ghost" disabled={!eventId || exporting} onClick={exportCsv}>{exporting ? "Exporting..." : "Export interview CSV"}</button>
+    </div>
+    <p className="field-help">Choose an event to export all its recorded results, across all applicants and statuses. Search and page limits do not restrict the export.</p>
     <form className="interview-search" onSubmit={e => { e.preventDefault(); setPage(0); setQuery(draft.trim()); setRefresh(value => value + 1); }}>
       <div className="field"><label htmlFor="applicant-search">Search applicants by name</label><input id="applicant-search" type="search" maxLength={200} value={draft} onChange={e => setDraft(e.target.value)} placeholder="Enter a name" /></div>
       <button type="submit" className="btn btn--primary">Search</button>
@@ -207,8 +248,8 @@ export default function InterviewStatus() {
     {notice && <p role="status" className="alert alert--info">{notice}</p>}
     {error ? <><p role="alert" className="alert alert--error">{error}</p><button type="button" className="btn btn--ghost" onClick={() => setRefresh(value => value + 1)}>Retry</button></> : rows === null ? <p role="status">Loading checked-in applicants…</p> : rows.length === 0 ? <p role="status">{query ? "No checked-in applicants match that name." : "No applicants have checked in yet."}</p> : <>
       <div className="glass-card interview-table" role="region" aria-label="Checked-in applicants" tabIndex={0}><table>
-        <thead><tr><th scope="col">Applicant</th><th scope="col">Event</th><th scope="col">Your interview records</th><th scope="col">Action</th></tr></thead>
-        <tbody>{rows.slice(0, 25).map(row => <tr key={row.registration_id}>
+        <thead><tr><th scope="col">Applicant</th><th scope="col">Event</th><th scope="col">Interview records</th><th scope="col">Action</th></tr></thead>
+        <tbody>{rows.slice(0, 25).map(row => <tr key={`${row.event_id}:${row.registration_id}`}>
           <td><strong>{row.applicant_name}</strong><br /><small>{row.registration_number}</small></td>
           <td>{row.event_name}</td>
           <td>{row.interviews.length ? row.interviews.map(item => <p key={item.id}>{item.company} · {item.position}<br /><strong>{statusLabel(item.status)}</strong></p>) : "Not recorded"}</td>
@@ -217,6 +258,6 @@ export default function InterviewStatus() {
       </table></div>
     </>}
     <div className="link-row"><button type="button" className="btn btn--ghost btn--small" disabled={!page || !rows} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {page + 1}</span><button type="button" className="btn btn--ghost btn--small" disabled={!rows || rows.length <= 25} onClick={() => setPage(value => value + 1)}>Next</button></div>
-    {selected && <InterviewModal key={selected.registration_id} applicant={selected} onClose={() => setSelected(null)} onSaved={() => { setSelected(null); setNotice("Interview status saved."); setRefresh(value => value + 1); }} />}
+    {selected && <InterviewModal key={`${selected.event_id}:${selected.registration_id}`} applicant={selected} onClose={() => setSelected(null)} onSaved={() => { setSelected(null); setNotice("Interview status saved."); setRefresh(value => value + 1); }} />}
   </section>;
 }

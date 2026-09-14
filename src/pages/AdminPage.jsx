@@ -227,6 +227,25 @@ function EventsPanel({ pushUndo }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!events?.length) return;
+    let active = true;
+    let loading = false;
+    async function refreshInterviews() {
+      if (loading || document.visibilityState !== "visible") return;
+      loading = true;
+      const results = await Promise.all(events.map(async event => {
+        const result = await adminEventInterviewSummary(event.id);
+        return [event.id, result.ok && result.data?.status === "ok" ? result.data.data : null];
+      }));
+      if (active) setInterviewSummary(Object.fromEntries(results));
+      loading = false;
+    }
+    const timer = setInterval(refreshInterviews, 15000);
+    window.addEventListener("focus", refreshInterviews);
+    return () => { active = false; clearInterval(timer); window.removeEventListener("focus", refreshInterviews); };
+  }, [events]);
+
   function openCreate() {
     setEditing(null);
     setDraft(BLANK_DRAFT);
@@ -572,12 +591,13 @@ function EventsPanel({ pushUndo }) {
                 </p>
               )}
 
+              <Link className="btn btn--ghost btn--small" to={`/staff/interviews?event=${ev.id}`}>Manage interviews / Export CSV</Link>
               {interviewSummary[ev.id] ? (
                 <div className="category-table-wrap">
                   <table className="category-table">
                     <thead>
                       <tr>
-                        <th>Interview Result</th>
+                        <th>Local Interview Result</th>
                         <th>Female</th>
                         <th>Male</th>
                         <th>Total</th>
