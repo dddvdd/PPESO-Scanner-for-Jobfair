@@ -193,9 +193,13 @@ export default function InterviewStatus() {
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
   const [notice, setNotice] = useState(null);
+  // Clear results only when switching the requested list, not when polling it.
+  useEffect(() => {
+    setRows(null);
+  }, [query, page, user?.id, eventId]);
   useEffect(() => {
     let active = true;
-    setRows(null); setError(null);
+    setError(null);
     listInterviewApplicants(query, page, eventId || null).then(result => {
       if (!active) return;
       if (result.ok) setRows(result.data ?? []); else setError(result.error.message);
