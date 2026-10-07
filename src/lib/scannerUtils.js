@@ -24,6 +24,9 @@ export function describeScanOutcome(result) {
   if (result.ok) {
     const d = result.data ?? {};
     switch (d.status) {
+      case "missing_profile":
+        return { tone: "incomplete", title: "Complete missing information before check-in",
+          applicantName: d.applicantName, registrationNumber: d.registrationNumber };
       case "success":
         return {
           tone: "success",

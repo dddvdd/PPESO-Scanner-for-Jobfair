@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { adminRecordLateCheckIn, performCheckIn, staffLookup, listAllEvents } from "../lib/api.js";
+import { adminRecordLateCheckIn, performCheckIn, staffLookup, listAllEvents, staffCompleteScannerProfile } from "../lib/api.js";
+import { SCANNER_PROFILE_FIELDS } from "../lib/scannerProfileFields.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { describeScanOutcome, getDeviceId, isValidTicketToken } from "../lib/scannerUtils.js";
 import "./StaffScanner.css";
@@ -100,6 +101,49 @@ export default function StaffScanner() {
   const [earlyEntry, setEarlyEntry] = useState(null);
   const [earlyEventId, setEarlyEventId] = useState("");
   const [earlyEvents, setEarlyEvents] = useState([]);
+  const [profileEntry, setProfileEntry] = useState(null);
+  const profileEntryRef = useRef(null);
+  const [profileAnswers, setProfileAnswers] = useState({});
+  const [profileError, setProfileError] = useState("");
+
+  function requestProfile(result, item, late = false, eventId = null, source = "manual") {
+    if (!result.ok || result.data?.status !== "missing_profile") return false;
+    const entry = { item, late, eventId, source, fields: result.data.missingFields };
+    profileEntryRef.current = entry;
+    setProfileEntry(entry);
+    setProfileAnswers({});
+    setProfileError("");
+    resultActiveRef.current = true;
+    pauseScanning();
+    return true;
+  }
+
+  async function completeProfile(event) {
+    event.preventDefault();
+    if (processingRef.current || !profileEntry) return;
+    processingRef.current = true;
+    setProcessing(true);
+    setProfileError("");
+    const pending = profileEntry;
+    let saved = false;
+    try {
+      const result = await staffCompleteScannerProfile(pending.item.ticketToken, profileAnswers);
+      saved = result.ok && result.data?.status === "ok";
+      if (!saved) setProfileError("Unable to save. Complete all fields with valid answers and try again.");
+    } finally {
+      processingRef.current = false;
+      setProcessing(false);
+    }
+    if (!saved) return;
+    profileEntryRef.current = null;
+    setProfileEntry(null);
+    if (pending.source === "scan") {
+      resultActiveRef.current = false;
+      await handleDecodedText(pending.item.ticketToken);
+    } else {
+      await handleManualCheckIn(pending.item, pending.late, pending.eventId);
+    }
+  }
 
   const runSearch = useCallback(async (queryText = "") => {
     const trimmed = typeof queryText === "string" ? queryText.trim() : "";
@@ -157,7 +201,7 @@ export default function StaffScanner() {
 
   const handleManualCheckIn = async (item, late = false, eventId = null) => {
     if (late && (!isAdmin || !lateReason.trim())) return;
-    if (processingRef.current || (!late && !item.ticketToken) || item.checkedInAt) return;
+    if (processingRef.current || profileEntryRef.current || (!late && !item.ticketToken) || item.checkedInAt) return;
     processingRef.current = true;
     setCheckingInToken(item.ticketToken);
     setProcessing(true);
@@ -167,6 +211,7 @@ export default function StaffScanner() {
         ? await adminRecordLateCheckIn(item.registrationNumber, lateReason, deviceIdentifierRef.current)
         : await performCheckIn(item.ticketToken, deviceIdentifierRef.current, eventId);
       const outcome = describeScanOutcome(result);
+      if (requestProfile(result, item, late, eventId)) return;
       setManualOutcome({ registrationNumber: item.registrationNumber, ...outcome });
       recordCheckIn(result);
       if (result.ok && result.data?.status === "event_past" && isAdmin) {
@@ -332,7 +377,7 @@ export default function StaffScanner() {
     async (decodedText) => {
       // One decode = at most one RPC. While a request is in flight, or while
       // a result is on screen awaiting "Scan Again", every frame is dropped.
-      if (processingRef.current || resultActiveRef.current) return;
+      if (processingRef.current || resultActiveRef.current || profileEntryRef.current) return;
 
       if (!isValidTicketToken(decodedText)) {
         processingRef.current = true;
@@ -360,6 +405,9 @@ export default function StaffScanner() {
         resultActiveRef.current = true;
         const outcome = describeScanOutcome(result);
         setScanOutcome(outcome);
+        recordCheckIn(result);
+        requestProfile(result, { ticketToken: decodedText, registrationNumber: result.data?.registrationNumber,
+          applicantName: result.data?.applicantName }, false, null, "scan");
         if (result.ok && result.data?.status === "event_past" && isAdmin) {
           setLateEntry({
             registrationNumber: result.data.registrationNumber,
@@ -375,7 +423,7 @@ export default function StaffScanner() {
         setProcessing(false);
       }
     },
-    [pauseScanning]
+    [pauseScanning, isAdmin]
   );
 
   useEffect(() => {
@@ -406,6 +454,10 @@ export default function StaffScanner() {
   }, [handleDecodedText]);
 
   const scanAgain = useCallback(() => {
+    profileEntryRef.current = null;
+    setProfileEntry(null);
+    setLateEntry(null);
+    setEarlyEntry(null);
     resultActiveRef.current = false;
     setScanOutcome(null);
     // Always relaunch from a clean state. A paused/broken instance (or a
@@ -547,7 +599,7 @@ export default function StaffScanner() {
               </div>
             )}
 
-            {!processing && cameraState === "paused" && !scanOutcome && (
+            {!processing && cameraState === "paused" && !scanOutcome && !profileEntry && (
               <button type="button" className="sc-resume-btn" style={{ position: "absolute", inset: 0, margin: "auto", width: "fit-content", height: "fit-content" }} onClick={resumeScanning}>
                 <PlayIcon /> Resume
               </button>
@@ -555,7 +607,7 @@ export default function StaffScanner() {
           </div>
         )}
 
-        {!notice && !scanOutcome && !processing && (
+        {!notice && !scanOutcome && !processing && !profileEntry && (
           <p className="sc-hint">Scan a participant&apos;s ticket QR code</p>
         )}
 
@@ -592,7 +644,37 @@ export default function StaffScanner() {
           </button>
         </div>
 
-        {isAdmin && lateEntry && (
+        {profileEntry && (
+          <form className="sc-search-section" onSubmit={completeProfile}>
+            <h2 className="sc-search-title">Complete missing information</h2>
+            <p>{profileEntry.item.applicantName} ({profileEntry.item.registrationNumber})</p>
+            <p>Save these required details to continue check-in.</p>
+            <fieldset disabled={processing} style={{ border: 0, padding: 0 }}>
+              {profileEntry.fields.map((key) => {
+                const field = SCANNER_PROFILE_FIELDS[key];
+                if (!field) return null;
+                const props = { id: `scanner-profile-${key}`, className: "sc-search-input", required: true,
+                  value: profileAnswers[key] ?? "",
+                  onChange: (event) => setProfileAnswers((current) => ({ ...current, [key]: event.target.value })) };
+                return <div className="field" key={key}>
+                  <label htmlFor={props.id}>{field.label} *</label>
+                  {field.options ? <select {...props}>
+                    <option value="">Select an answer</option>
+                    {field.options.map((value) => <option key={value} value={value}>{value === "yes" ? "Yes" : value === "no" ? "No" : value}</option>)}
+                  </select> : <input {...props} type={field.type} maxLength={200}
+                    max={field.type === "date" ? todayIsoDate : undefined} />}
+                </div>;
+              })}
+            </fieldset>
+            {profileError && <p role="alert">{profileError}</p>}
+            <button className="sc-btn sc-btn--primary" type="submit" disabled={processing}>
+              {processing ? "Saving..." : "Save and continue check-in"}
+            </button>
+            <button className="sc-btn sc-btn--ghost" type="button" disabled={processing} onClick={scanAgain}>Cancel</button>
+          </form>
+        )}
+
+        {isAdmin && lateEntry && !profileEntry && (
           <form className="sc-search-section" onSubmit={(event) => { event.preventDefault(); handleManualCheckIn(lateEntry, true); }}>
             <h2 className="sc-search-title">Record late check-in</h2>
             <p>Confirm {lateEntry.applicantName} ({lateEntry.registrationNumber}) attended {lateEntry.eventName || "the event"} on {lateEntry.eventDate}.</p>
@@ -607,7 +689,7 @@ export default function StaffScanner() {
           </form>
         )}
 
-        {earlyEntry && (
+        {earlyEntry && !profileEntry && (
           <EarlyCheckInForm
             item={earlyEntry}
             events={earlyEvents}

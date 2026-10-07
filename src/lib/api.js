@@ -198,6 +198,7 @@ export async function performCheckIn(ticketToken, deviceIdentifier, eventId) {
     eventName: d.event_name ?? null,
     eventDate: d.event_date ?? null,
     checkedInAt: d.checked_in_at ?? null,
+    missingFields: d.missing_fields ?? [],
     message: d.message ?? null,
   });
 }
@@ -212,7 +213,13 @@ export async function adminRecordLateCheckIn(registrationNumber, reason, deviceI
   const d = result.data ?? {};
   return ok({ status: d.status ?? "error", registrationNumber: d.registration_number,
     applicantName: d.applicant_name, checkedInAt: d.checked_in_at,
-    attendanceDate: d.attendance_date });
+    attendanceDate: d.attendance_date, missingFields: d.missing_fields ?? [] });
+}
+
+export async function staffCompleteScannerProfile(ticketToken, answers) {
+  return toResult(() => getSupabase().rpc("staff_complete_scanner_profile", {
+    p_ticket_token: text(ticketToken), p_answers: answers,
+  }));
 }
 
 /** Authorized registration lookup for scanner/admin use. Staff-only in DB. */
