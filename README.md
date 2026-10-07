@@ -280,6 +280,50 @@ npm run validate:migrations  # Check all SQL files are valid
 
 ---
 
+## ✉️ Request missing registration details
+
+Administrators can send one-time correction links to preregistrants who have
+blank reporting answers. A link lasts seven days, is single-use, and can only
+fill fields that were blank when the link was issued. The database stores a
+hash of each link token; the raw token is kept in the email link fragment and
+is not sent in normal web requests.
+
+### Configure and deploy
+
+1. Apply `supabase/migrations/20261007140000_registration_data_correction_links.sql`
+   in the Supabase SQL Editor.
+2. Verify your sender domain in Resend.
+3. In Supabase Dashboard → **Edge Functions → Secrets**, set:
+   - `RESEND_API_KEY` — the Resend API key.
+   - `RESEND_FROM_EMAIL` — an address on the verified sender domain, for
+     example `PESO <no-reply@example.gov.ph>`.
+   - `APP_BASE_URL` — the public HTTPS origin where this app is deployed,
+     without a trailing slash.
+4. Deploy the function from the project root:
+
+   ```powershell
+   supabase functions deploy send-registration-corrections --project-ref YOUR_PROJECT_REF
+   ```
+
+5. Deploy the frontend containing the registration-correction page.
+6. Sign in as an administrator, open **Admin → Export**, select the event,
+   and click **Preview affected preregistrants**. Check the number before
+   choosing **Send correction emails** and confirming the prompt.
+
+The preview reports a count only. Email addresses remain in the server-side
+function and are not returned to the browser. The sender uses the registered
+email address on each preregistration. Sending requires administrator
+authentication and is limited to preregistrants with at least one blank
+answer among Date of Birth, Highest Educational Attainment, PWD, Sex,
+First-time Job Seeker, Returning OFW, Returning Worker, Interested in Skills
+Training, Province, Municipality/City, and Barangay.
+
+The send result is provider acceptance, not a guarantee of inbox delivery.
+Review delivery/bounce status in Resend. Failed addresses remain uncorrected;
+do not infer answers for them.
+
+---
+
 ## 📊 Link Supabase data to Excel
 
 Want to view or export live registration and check-in data in Excel?

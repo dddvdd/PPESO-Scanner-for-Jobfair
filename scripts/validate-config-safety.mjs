@@ -19,15 +19,13 @@ walk(process.cwd());
 const problems = [];
 const warnings = [];
 
-// Code/config locations where secrets must never appear even in documentation form
-const codeLike = (f) => {
+// Client-shipped code/config locations where server-only credentials must never appear.
+const clientCode = (f) => {
   const rel = relative(process.cwd(), f).toLowerCase();
   return (
     rel.startsWith(`src${sep}`) ||
     rel === "index.html" ||
-    rel === "package.json" ||
-    rel.startsWith(`supabase${sep}`) ||
-    rel.endsWith(".env")
+    rel === "package.json"
   );
 };
 
@@ -45,13 +43,14 @@ for (const file of files) {
     problems.push(`JWT-like token found in ${rel}`);
   }
 
-  // Real Supabase project URL (20-char lowercase ref), placeholders like YOUR_PROJECT_REF are safe
-  if (/[a-z0-9]{20}\.supabase\.co/.test(text)) {
+  // Ignore private local environment files; placeholders like YOUR_PROJECT_REF are safe.
+  const isLocalEnv = rel === ".env" || rel.startsWith(".env.");
+  if (!isLocalEnv && /[a-z0-9]{20}\.supabase\.co/.test(text)) {
     problems.push(`Hard-coded Supabase project URL found in ${rel}`);
   }
 
-  // Service-role references must never appear in shipped code/config
-  if (codeLike(file) && /service_role/i.test(text)) {
+  // Service-role credentials must never be bundled into code delivered to browsers.
+  if (clientCode(file) && /service_role/i.test(text)) {
     problems.push(`service_role reference found in ${rel}`);
   }
 }

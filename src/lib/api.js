@@ -363,6 +363,23 @@ export function adminListEvents() {
   );
 }
 
+export function registrationCorrectionDetails(token) {
+  return toResult(() => getSupabase().rpc("registration_correction_details", { p_token: token }));
+}
+
+export function submitRegistrationCorrection(token, answers) {
+  return toResult(() => getSupabase().rpc("submit_registration_correction", {
+    p_token: token,
+    p_answers: answers,
+  }));
+}
+
+export function adminRegistrationCorrectionCampaign(eventId, action) {
+  return toResult(() => getSupabase().functions.invoke("send-registration-corrections", {
+    body: { eventId, action },
+  }));
+}
+
 export function adminCountEventCheckIns(eventId) {
   return toResult(async () => {
     const { count, error } = await getSupabase()
@@ -609,4 +626,115 @@ export async function exportInterviewResults(eventId) {
     if (batch.length < 500) return { ok: true, data: rows };
     after = batch.at(-1).id;
   }
+}
+
+export async function exportPreRegistrants(eventId) {
+  const rows = [];
+  for (;;) {
+    const result = await toResult(() => getSupabase()
+      .from("registrations")
+      .select("id, event_id, form_id, registration_number, first_name, middle_name, last_name, suffix, email, mobile_number, form_data, status, registered_at, entry_source, recorded_by")
+      .eq("event_id", eventId)
+      .eq("entry_source", "pre_registration")
+      .order("registered_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(rows.length, rows.length + 499));
+    if (!result.ok) return result;
+    const batch = result.data ?? [];
+    rows.push(...batch);
+    if (batch.length < 500) break;
+  }
+  const formsResult = await toResult(() => getSupabase()
+    .from("forms")
+    .select("id, event_id")
+    .eq("event_id", eventId));
+  if (!formsResult.ok) return formsResult;
+  const formIds = (formsResult.data ?? []).map(f => f.id);
+  let fields = [];
+  if (formIds.length > 0) {
+    const fieldsResult = await toResult(() => getSupabase()
+      .from("form_fields")
+      .select("id, form_id, field_key, label, field_type, required, options, sort_order")
+      .in("form_id", formIds));
+    if (!fieldsResult.ok) return fieldsResult;
+    fields = fieldsResult.data ?? [];
+  }
+  return ok({ rows, fields });
+}
+
+export async function exportCheckIns(eventId) {
+  const rows = [];
+  for (;;) {
+    const result = await toResult(() => getSupabase()
+      .from("check_ins")
+      .select(`
+        id,
+        registration_id,
+        scanned_at,
+        status,
+        attendance_date,
+        event_id,
+        registrations (
+          id,
+          event_id,
+          registration_number,
+          first_name,
+          middle_name,
+          last_name,
+          suffix,
+          email,
+          mobile_number,
+          form_data,
+          status,
+          registered_at,
+          entry_source
+        )
+      `)
+      .eq("event_id", eventId)
+      .eq("status", "success")
+      .order("scanned_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(rows.length, rows.length + 499));
+    if (!result.ok) return result;
+    const batch = result.data ?? [];
+    rows.push(...batch);
+    if (batch.length < 500) break;
+  }
+  const eventsResult = await toResult(() => getSupabase()
+    .from("events")
+    .select("id, name"));
+  const eventMap = {};
+  if (eventsResult.ok) {
+    for (const ev of eventsResult.data ?? []) {
+      eventMap[ev.id] = ev.name;
+    }
+  }
+  const mapped = rows.map(row => {
+    const reg = row.registrations ?? {};
+    const fd = reg.form_data ?? {};
+    return {
+      registration_number: reg.registration_number ?? "",
+      applicant_name: [reg.first_name, reg.middle_name, reg.last_name, reg.suffix].filter(Boolean).join(" "),
+      email: reg.email ?? "",
+      mobile_number: reg.mobile_number ?? "",
+      sex: fd.sex ?? "",
+      date_of_birth: fd.date_of_birth ?? "",
+      pwd: fd.pwd ?? "",
+      first_time_job_seeker: fd.first_time_job_seeker ?? "",
+      returning_ofw: fd.returning_ofw ?? "",
+      returning_worker: fd.returning_worker ?? "",
+      interested_in_skills_training: fd.interested_in_skills_training ?? "",
+      province: fd.province ?? "",
+      municipality_city: fd.municipality_city ?? "",
+      barangay: fd.barangay ?? "",
+      registration_event: eventMap[reg.event_id] ?? reg.event_id ?? "",
+      checkin_event: eventMap[row.event_id] ?? row.event_id ?? "",
+      registered_at: reg.registered_at ?? "",
+      registration_status: reg.status ?? "",
+      checked_in_at: row.scanned_at ?? "",
+      checkin_status: row.status ?? "",
+      attendance_date: row.attendance_date ?? "",
+    };
+  });
+  return ok(mapped);
 }

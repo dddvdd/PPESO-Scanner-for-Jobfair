@@ -1,7 +1,7 @@
 begin;
 do $test$
 declare
- v_form uuid; v_staff uuid; v_admin uuid; v_event uuid; v_old uuid; v_today uuid; v_future uuid; v_draft uuid;
+ v_form uuid; v_today_form uuid; v_staff uuid; v_admin uuid; v_event uuid; v_old uuid; v_today uuid; v_future uuid; v_draft uuid;
  v_result jsonb; v_reg uuid; v_count int; v_email text := gen_random_uuid()::text||'@example.test';
  v_day date := (now() at time zone 'Asia/Manila')::date;
 begin
@@ -14,14 +14,17 @@ begin
  insert into public.events(name,event_date,status) values('Walk-in future',v_day+1,'published') returning id into v_future;
  insert into public.events(name,event_date,status) values('Walk-in draft',v_day-1,'draft') returning id into v_draft;
  insert into public.forms(event_id,name,status,published_at) values(v_event,'Test form','published',now()) returning id into v_form;
+ insert into public.forms(event_id,name,status,published_at) values(v_today,'Today test form','published',now()) returning id into v_today_form;
  perform set_config('request.jwt.claim.sub','',true);
  if public.staff_record_walk_in(v_event,'Test','Only',v_email,'09000000000',p_form_id=>v_form)->>'status' <> 'forbidden' then raise exception 'Anonymous allowed'; end if;
  perform set_config('request.jwt.claim.sub',v_staff::text,true);
  v_result:=public.staff_walk_in_events();
  if not exists(select 1 from jsonb_array_elements(v_result->'events') e where e->>'id'=v_event::text) then raise exception 'Day 5 missing'; end if;
- if exists(select 1 from jsonb_array_elements(v_result->'events') e where (e->>'id')::uuid in(v_old,v_today,v_future,v_draft)) then raise exception 'Invalid event offered'; end if;
+ if not exists(select 1 from jsonb_array_elements(v_result->'events') e where e->>'id'=v_today::text) then raise exception 'Today missing'; end if;
+ if exists(select 1 from jsonb_array_elements(v_result->'events') e where (e->>'id')::uuid in(v_old,v_future,v_draft)) then raise exception 'Invalid event offered'; end if;
+ if public.staff_walk_in_form(v_today)->>'status' <> 'ok' then raise exception 'Today form rejected'; end if;
  if public.staff_record_walk_in(v_old,'Test','Only',v_email,'09000000000',p_form_id=>v_form)->>'status' <> 'event_not_eligible' then raise exception 'Old accepted'; end if;
- if public.staff_record_walk_in(v_today,'Test','Only',v_email,'09000000000',p_form_id=>v_form)->>'status' <> 'event_not_eligible' then raise exception 'Today accepted'; end if;
+ if public.staff_record_walk_in(v_today,'Today','Applicant','today-'||v_email,'09000000000',p_form_id=>v_today_form)->>'status' <> 'success' then raise exception 'Today rejected'; end if;
  if public.staff_record_walk_in(v_future,'Test','Only',v_email,'09000000000',p_form_id=>v_form)->>'status' <> 'event_not_eligible' then raise exception 'Future accepted'; end if;
  if public.staff_record_walk_in(v_draft,'Test','Only',v_email,'09000000000',p_form_id=>v_form)->>'status' <> 'event_not_eligible' then raise exception 'Draft accepted'; end if;
  if public.staff_record_walk_in(v_event,' ','Only',v_email,'09000000000',p_form_id=>v_form)->>'status' <> 'missing_required_fields' then raise exception 'Empty name accepted'; end if;

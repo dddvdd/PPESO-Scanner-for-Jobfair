@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   adminCreateEvent,
   adminCountEventCheckIns,
@@ -21,14 +21,20 @@ import {
   adminRestoreForms,
   adminUpdateEvent,
   adminUpdateProfileRole,
+  exportPreRegistrants,
+  exportCheckIns,
+  adminRegistrationCorrectionCampaign,
 } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import UndoToast from "../components/UndoToast.jsx";
+import { preRegistrantsCsv, downloadPreRegistrantsCsv } from "../lib/preRegistrantsExport.js";
+import { checkinsCsv, downloadCheckinsCsv } from "../lib/checkinsExport.js";
 
 const ROLE_LABELS = { admin: "Admin", staff: "Staff", supervisor: "Supervisor", pending: "Pending" };
 
 const TABS = [
   { id: "events", label: "Events" },
+  { id: "export", label: "Export" },
   { id: "staff", label: "Staff roles" },
 ];
 
@@ -70,7 +76,8 @@ function Notice({ text }) {
 export default function AdminPage() {
   // Tab state lives in the URL (?tab=staff) so refresh and back keep context.
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get("tab") === "staff" ? "staff" : "events";
+  const tabParam = searchParams.get("tab");
+  const tab = tabParam === "staff" || tabParam === "export" ? tabParam : "events";
   const tabRefs = useRef({});
   const [undo, setUndo] = useState(null);
   const [pageNotice, flashPageNotice] = useFlash();
@@ -144,6 +151,14 @@ export default function AdminPage() {
         hidden={tab !== "events"}
       >
         <EventsPanel pushUndo={pushUndo} />
+      </div>
+      <div
+        role="tabpanel"
+        id="panel-export"
+        aria-labelledby="tab-export"
+        hidden={tab !== "export"}
+      >
+        <ExportPanel />
       </div>
       <div
         role="tabpanel"
@@ -544,43 +559,43 @@ function EventsPanel({ pushUndo }) {
                     <tbody>
                       <tr className="category-table-total">
                         <td>Total</td>
-                        <td>{(categoryData[ev.id].total_prereg ?? 0).toLocaleString()}</td>
-                        <td>{(categoryData[ev.id].total_checkin ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].total_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].total_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].total_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].total_prereg ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].total_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].total_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].total_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].total_checkin ?? 0).toLocaleString()}</td>
                       </tr>
                       <tr>
                         <td>PWD</td>
-                        <td>{(categoryData[ev.id].pwd_prereg ?? 0).toLocaleString()}</td>
-                        <td>{(categoryData[ev.id].pwd_checkin ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].pwd_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].pwd_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].pwd_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].pwd_prereg ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].pwd_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].pwd_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].pwd_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].pwd_checkin ?? 0).toLocaleString()}</td>
                       </tr>
                       <tr>
                         <td>First-time Job seekers</td>
-                        <td>{(categoryData[ev.id].first_time_prereg ?? 0).toLocaleString()}</td>
-                        <td>{(categoryData[ev.id].first_time_checkin ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].first_time_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].first_time_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].first_time_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].first_time_prereg ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].first_time_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].first_time_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].first_time_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].first_time_checkin ?? 0).toLocaleString()}</td>
                       </tr>
                       <tr>
                         <td>Returning OFW</td>
-                        <td>{(categoryData[ev.id].ofw_prereg ?? 0).toLocaleString()}</td>
-                        <td>{(categoryData[ev.id].ofw_checkin ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].ofw_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].ofw_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].ofw_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].ofw_prereg ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].ofw_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].ofw_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].ofw_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].ofw_checkin ?? 0).toLocaleString()}</td>
                       </tr>
                       <tr>
                         <td>Returning workers</td>
-                        <td>{(categoryData[ev.id].worker_prereg ?? 0).toLocaleString()}</td>
-                        <td>{(categoryData[ev.id].worker_checkin ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].worker_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].worker_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].worker_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].worker_prereg ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].worker_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].worker_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].worker_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].worker_checkin ?? 0).toLocaleString()}</td>
                       </tr>
                       <tr>
                         <td>Interested in Training</td>
-                        <td>{(categoryData[ev.id].training_prereg ?? 0).toLocaleString()}</td>
-                        <td>{(categoryData[ev.id].training_checkin ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].training_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].training_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].training_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].training_prereg ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].training_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].training_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].training_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].training_checkin ?? 0).toLocaleString()}</td>
                       </tr>
                       <tr>
                         <td>Walk-in</td>
-                        <td>{(categoryData[ev.id].walkin_prereg ?? 0).toLocaleString()}</td>
-                        <td>{(categoryData[ev.id].walkin_checkin ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].walkin_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].walkin_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].walkin_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].walkin_prereg ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].walkin_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].walkin_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].walkin_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].walkin_checkin ?? 0).toLocaleString()}</td>
                       </tr>
                       <tr>
                         <td>Youth (30 &amp; below)</td>
-                        <td>{(categoryData[ev.id].youth_prereg ?? 0).toLocaleString()}</td>
-                        <td>{(categoryData[ev.id].youth_checkin ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].youth_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].youth_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].youth_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].youth_prereg ?? 0).toLocaleString()}</td>
+                        <td title={`MALE: ${(categoryData[ev.id].youth_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].youth_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].youth_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].youth_checkin ?? 0).toLocaleString()}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -591,7 +606,6 @@ function EventsPanel({ pushUndo }) {
                 </p>
               )}
 
-              <Link className="btn btn--ghost btn--small" to={`/staff/interviews?event=${ev.id}`}>Manage interviews / Export CSV</Link>
               {interviewSummary[ev.id] ? (
                 <div className="category-table-wrap">
                   <table className="category-table">
@@ -703,6 +717,213 @@ function EventsPanel({ pushUndo }) {
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+/* ------------------------------- Export -------------------------------- */
+
+function ExportPanel() {
+  const navigate = useNavigate();
+  const [events, setEvents] = useState(null);
+  const [selectedEventId, setSelectedEventId] = useState("");
+  const [exporting, setExporting] = useState(null); // "pre-reg" | "checkin" | null
+  const [notice, flash] = useFlash();
+  const [error, setError] = useState(null);
+  const [correctionPreview, setCorrectionPreview] = useState(null);
+  const [correctionBusy, setCorrectionBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    adminListEvents().then((result) => {
+      if (!active) return;
+      if (result.ok) setEvents(result.data ?? []);
+      else setError(result.error.message);
+    });
+    return () => { active = false; };
+  }, []);
+
+  const selectedEvent = (events ?? []).find((ev) => ev.id === selectedEventId) || null;
+
+  async function handleCorrectionPreview() {
+    if (!selectedEvent || correctionBusy) return;
+    setCorrectionBusy(true);
+    setCorrectionPreview(null);
+    setError(null);
+    const result = await adminRegistrationCorrectionCampaign(selectedEvent.id, "preview");
+    setCorrectionBusy(false);
+    if (!result.ok) {
+      setError(`Could not preview correction emails: ${result.error.message}`);
+      return;
+    }
+    if (result.data?.status !== "ok") {
+      setError(result.data?.error ?? "Could not preview correction emails.");
+      return;
+    }
+    setCorrectionPreview({ ...result.data, eventId: selectedEvent.id });
+  }
+
+  async function handleSendCorrectionEmails() {
+    if (!selectedEvent || correctionBusy || correctionPreview?.eventId !== selectedEvent.id) return;
+    const count = correctionPreview.eligible;
+    if (!Number.isInteger(count) || count < 1) return;
+    const confirmed = window.confirm(
+      `Send correction emails to ${count.toLocaleString()} preregistrants for "${selectedEvent.name}"? Each link will expire after 7 days and can be used once.`
+    );
+    if (!confirmed) return;
+
+    setCorrectionBusy(true);
+    setError(null);
+    const result = await adminRegistrationCorrectionCampaign(selectedEvent.id, "send");
+    setCorrectionBusy(false);
+    if (!result.ok) {
+      setError(`Correction email campaign failed: ${result.error.message}`);
+      return;
+    }
+    if (result.data?.status !== "ok") {
+      setError(result.data?.error ?? "Correction email campaign failed.");
+      return;
+    }
+    setCorrectionPreview(null);
+    flash(`Correction emails: ${result.data.sent} sent, ${result.data.failed} failed, ${result.data.skipped} invalid email addresses skipped.`);
+  }
+
+  async function handleExportPreRegistrants() {
+    if (!selectedEvent || exporting) return;
+    setExporting("pre-reg");
+    setError(null);
+    try {
+      const result = await exportPreRegistrants(selectedEvent.id);
+      if (!result.ok) throw new Error(result.error.message);
+      const { rows, fields } = result.data;
+      downloadPreRegistrantsCsv(selectedEvent.name, preRegistrantsCsv(selectedEvent.name, fields, rows));
+      flash(`Exported ${rows.length} pre-registrants.`);
+    } catch (err) {
+      setError(`Pre-registrant export failed: ${err.message}`);
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  async function handleExportCheckIns() {
+    if (!selectedEvent || exporting) return;
+    setExporting("checkin");
+    setError(null);
+    try {
+      const result = await exportCheckIns(selectedEvent.id);
+      if (!result.ok) throw new Error(result.error.message);
+      const rows = result.data;
+      downloadCheckinsCsv(selectedEvent.name, checkinsCsv(selectedEvent.name, rows));
+      flash(`Exported ${rows.length} check-ins.`);
+    } catch (err) {
+      setError(`Check-in export failed: ${err.message}`);
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  if (events === null && !error) {
+    return <p className="status-line">Loading events…</p>;
+  }
+
+  const noEvents = (events ?? []).length === 0;
+
+  return (
+    <div className="form-stack">
+      {error && (
+        <p role="alert" className="alert alert--error">{error}</p>
+      )}
+      <Notice text={notice} />
+
+      <div className="glass-card event-card">
+        <h2>Export</h2>
+        <p className="event-desc">
+          Select an event, then download pre-registrants or check-in data as CSV.
+        </p>
+
+        <div className="field">
+          <label htmlFor="export-event">Select event</label>
+          <select
+            id="export-event"
+            value={selectedEventId}
+            disabled={noEvents || !!exporting || correctionBusy}
+            onChange={(e) => {
+              setSelectedEventId(e.target.value);
+              setCorrectionPreview(null);
+            }}
+          >
+            <option value="">{noEvents ? "No events available" : "Select event"}</option>
+            {(events ?? []).map((ev) => (
+              <option key={ev.id} value={ev.id}>
+                {ev.name}{ev.event_date ? ` — ${ev.event_date}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {noEvents && (
+          <p className="field-hint">No events have been created yet.</p>
+        )}
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+          <button
+            type="button"
+            className="btn btn--ghost btn--small"
+            disabled={!selectedEventId}
+            onClick={() => navigate(`/staff/interviews?event=${selectedEventId}`)}
+          >
+            Manage Interview
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost btn--small"
+            disabled={!selectedEventId || !!exporting || correctionBusy}
+            onClick={handleExportPreRegistrants}
+          >
+            {exporting === "pre-reg" ? "Exporting…" : "Download Pre-registrants"}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost btn--small"
+            disabled={!selectedEventId || !!exporting || correctionBusy}
+            onClick={handleExportCheckIns}
+          >
+            {exporting === "checkin" ? "Exporting…" : "Download Check-ins"}
+          </button>
+        </div>
+      </div>
+
+      <div className="glass-card event-card">
+        <h2>Missing registration details</h2>
+        <p className="event-desc">
+          Preview preregistrants with missing registration details, then send each one a private correction link. Links expire after 7 days and can be used once.
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+          <button
+            type="button"
+            className="btn btn--ghost btn--small"
+            disabled={!selectedEventId || correctionBusy || !!exporting}
+            onClick={handleCorrectionPreview}
+          >
+            {correctionBusy ? "Working…" : "Preview affected preregistrants"}
+          </button>
+          {correctionPreview?.eventId === selectedEventId && (
+            <>
+              <p className="field-hint" role="status">
+                {correctionPreview.eligible.toLocaleString()} preregistrants have at least one missing field.
+              </p>
+              <button
+                type="button"
+                className="btn btn--primary btn--small"
+                disabled={correctionBusy || correctionPreview.eligible === 0}
+                onClick={handleSendCorrectionEmails}
+              >
+                Send correction emails
+              </button>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react"
 import { NavLink, Route, Routes } from "react-router-dom";
 import EventPicker from "./pages/EventPicker.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
+import RegistrationCorrectionPage from "./pages/RegistrationCorrectionPage.jsx";
 import RegistrationSuccess from "./pages/RegistrationSuccess.jsx";
 import RetrieveTicket from "./pages/RetrieveTicket.jsx";
 import StaffLogin from "./pages/StaffLogin.jsx";
@@ -152,6 +153,7 @@ export default function App() {
           <Route path="/" element={<EventPicker />} />
           <Route path="/events" element={<EventPicker />} />
           <Route path="/events/:eventId/register/:formId" element={<RegisterPage />} />
+          <Route path="/registration-correction" element={<RegistrationCorrectionPage />} />
           <Route path="/registration/success" element={<RegistrationSuccess />} />
           <Route path="/retrieve-ticket" element={<RetrieveTicket />} />
           {/* Staff area lives off the public menu; reached by direct link */}

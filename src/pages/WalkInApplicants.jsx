@@ -9,7 +9,7 @@ import { initialAnswers, validateIdentity, validateAnswers, buildFormData, resol
 const EMPTY = { firstName: "", middleName: "", lastName: "", suffix: "", email: "", mobileNumber: "" };
 const ERRORS = {
   forbidden: "Only staff and admins can record walk-in applicants.",
-  event_not_eligible: "This activity is no longer eligible. Select an activity from the previous five days.",
+  event_not_eligible: "This activity is not eligible. Select an activity held today or within the previous five days.",
   duplicate_registration: "This email is already registered for this activity. No new attendance was recorded. Check the existing registrant in the scanner list.",
   missing_required_fields: "Enter the applicant's first name, last name, and mobile number.",
   invalid_email: "Enter a valid email address.",
@@ -97,18 +97,18 @@ export default function WalkInApplicants() {
   return <section className="page">
     <p className="page-kicker">Staff &amp; admin</p>
     <h1 className="page-title">Walk-in applicants</h1>
-    <p className="page-lead">Record applicants who attended without pre-registering. Only activities held 1–5 days ago are available, based on Philippine time.</p>
+    <p className="page-lead">Record applicants who attended without pre-registering. Activities held today or within the previous five days are available, based on Philippine time.</p>
     <Link to="/staff/scanner" className="btn btn--ghost btn--small">Back to scanner</Link>
     {error && <p role="alert" className="alert alert--error">{error}</p>}
     {success && <p ref={successRef} tabIndex={-1} role="status" className="alert alert--info">{success}</p>}
     {events === null ? <>
       {!error && <p role="status">Loading eligible activities...</p>}
       {error && <button className="btn btn--ghost" onClick={() => { setError(null); setAttempt(value => value + 1); }}>Retry activities</button>}
-    </> : events.length === 0 ? <p>No activities were held in the previous five days.</p> :
+    </> : events.length === 0 ? <p>No eligible activities were held today or within the previous five days.</p> :
       <form className="form-stack" onSubmit={submit} noValidate>
         <label className="field" htmlFor="walk-in-event">Activity *</label>
         <select id="walk-in-event" required value={eventId} disabled={saving} onChange={event => { setEventId(event.target.value); setConfirmed(false); setSuccess(null); }}>
-          <option value="">Select a past activity</option>
+          <option value="">Select an activity</option>
           {events.map(event => <option key={event.id} value={event.id}>{event.name} — {event.event_date}</option>)}
         </select>
         {eventId && !formReady && !formError && <p role="status">Loading event registration form...</p>}
