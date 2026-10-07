@@ -46,15 +46,20 @@ function optionsOf(field) {
 export function IdentityField({ name, value, error, disabled, onChange, hideRequired }) {
   const type = name === "email" ? "email" : "text";
   const inputMode = name === "mobileNumber" ? "tel" : undefined;
+  const required = ["firstName", "lastName", "email", "mobileNumber"].includes(name);
   return (
     <div>
-      <label htmlFor={`identity-${name}`}>{IDENTITY[name]}</label>
+      <label htmlFor={`identity-${name}`}>
+        {IDENTITY[name]}
+        {required && !hideRequired ? " *" : ""}
+      </label>
       <input
         id={`identity-${name}`}
         type={type}
         inputMode={inputMode}
         placeholder={IDENTITY_PLACEHOLDER[name]}
         value={value}
+        required={required}
         disabled={disabled}
         aria-invalid={error ? true : undefined}
         onChange={(e) => onChange(name, e.target.value)}
@@ -83,6 +88,7 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
           type="text"
           placeholder={placeholderFor(field)}
           value={typeof value === "string" ? value : ""}
+          required={field.required}
           disabled={disabled}
           aria-describedby={describedBy}
           onChange={(e) => onChange(field.field_key, e.target.value)}
@@ -96,6 +102,7 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
           id={id}
           rows={3}
           value={typeof value === "string" ? value : ""}
+          required={field.required}
           disabled={disabled}
           aria-describedby={describedBy}
           onChange={(e) => onChange(field.field_key, e.target.value)}
@@ -111,6 +118,7 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
           inputMode="decimal"
           placeholder="e.g. 25 or 25.5"
           value={typeof value === "string" ? value : ""}
+          required={field.required}
           disabled={disabled}
           aria-describedby={describedBy}
           onChange={(e) => onChange(field.field_key, e.target.value)}
@@ -124,6 +132,7 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
           id={id}
           type="date"
           value={typeof value === "string" ? value : ""}
+          required={field.required}
           disabled={disabled}
           aria-describedby={describedBy}
           onChange={(e) => onChange(field.field_key, e.target.value)}
@@ -136,6 +145,7 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
         <select
           id={id}
           value={typeof value === "string" ? value : ""}
+          required={field.required}
           disabled={disabled}
           aria-describedby={describedBy}
           onChange={(e) => onChange(field.field_key, e.target.value)}
@@ -153,13 +163,15 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
     case "radio":
       control = (
         <div role="radiogroup" aria-labelledby={`${id}-label`}>
-          {options.map((option) => (
+          {options.map((option, index) => (
             <label key={option} className="choice">
               <input
+                id={index === 0 ? id : `${id}-${index}`}
                 type="radio"
                 name={id}
                 value={option}
                 checked={value === option}
+                required={field.required}
                 disabled={disabled}
                 onChange={() => onChange(field.field_key, option)}
               />
@@ -183,11 +195,13 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
       };
       control = (
         <div>
-          {options.map((option) => (
+          {options.map((option, index) => (
             <label key={option} className="choice">
               <input
+                id={index === 0 ? id : `${id}-${index}`}
                 type="checkbox"
                 checked={selected.includes(option)}
+                required={field.required && options.indexOf(option) === 0}
                 disabled={disabled}
                 onChange={() => toggle(option)}
               />
@@ -202,13 +216,15 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
     case "yes_no":
       control = (
         <div role="radiogroup" aria-labelledby={`${id}-label`}>
-          {["yes", "no"].map((option) => (
+          {["yes", "no"].map((option, index) => (
             <label key={option} className="choice">
               <input
+                id={index === 0 ? id : `${id}-${index}`}
                 type="radio"
                 name={id}
                 value={option}
                 checked={value === option}
+                required={field.required}
                 disabled={disabled}
                 onChange={() => onChange(field.field_key, option)}
               />
@@ -226,6 +242,7 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
           type="text"
           placeholder={placeholderFor(field)}
           value={typeof value === "string" ? value : ""}
+          required={field.required}
           disabled={disabled}
           onChange={(e) => onChange(field.field_key, e.target.value)}
         />
@@ -235,7 +252,7 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
   return (
     <div>
       <label id={`${id}-label`} htmlFor={field.field_type === "short_text" || field.field_type === "long_text" || field.field_type === "number" || field.field_type === "date" || field.field_type === "dropdown" ? id : undefined}>
-        {field.label}
+        {field.label}{field.field_key === "pwd" ? "?" : ""}
         {field.required && !hideRequired ? " *" : ""}
       </label>
       {control}

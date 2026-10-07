@@ -230,6 +230,31 @@ export default function RegisterPage() {
       Object.keys(answerErrors).length > 0 ||
       consentMissing
     ) {
+      const firstInvalidIdentity = [
+        "firstName",
+        "middleName",
+        "lastName",
+        "suffix",
+        "email",
+        "mobileNumber",
+      ].find((name) => idErrors[name]);
+      const firstInvalidField = fields.find((field) => answerErrors[field.field_key]);
+      const target = firstInvalidIdentity
+        ? document.getElementById(`identity-${firstInvalidIdentity}`)
+        : firstInvalidField
+          ? document.getElementById(`field-${firstInvalidField.field_key}`)
+          : consentMissing
+            ? document.getElementById("data-privacy-consent")
+            : null;
+
+      if (target instanceof HTMLElement) {
+        if (target.matches("input, select, textarea")) {
+          target.focus();
+        } else {
+          target.querySelector("input, select, textarea")?.focus();
+        }
+      }
+
       setBanner({
         kind: "application",
         message: consentMissing
@@ -384,6 +409,7 @@ export default function RegisterPage() {
           </div>
           <label className="choice consent-check">
             <input
+              id="data-privacy-consent"
               type="checkbox"
               checked={consentGiven}
               disabled={submitting}

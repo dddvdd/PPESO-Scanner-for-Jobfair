@@ -91,7 +91,7 @@ export default function ClassificationCardGroup({
   }
 
   return (
-    <div className="field">
+    <div className="field" id={`field-${trio[0]}`}>
       <span id={`${groupId}-label`} className="group-label">
         Which best describes you?{hideRequired ? "" : " *"}
       </span>
