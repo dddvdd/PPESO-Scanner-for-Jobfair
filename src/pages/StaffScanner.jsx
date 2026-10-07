@@ -537,6 +537,18 @@ export default function StaffScanner() {
     year: "numeric",
   });
   const todayIsoDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const currentRegistrants = searchResults.filter((item) => !item.eventDate || item.eventDate >= todayIsoDate);
+  const pastEventGroups = Array.from(searchResults.reduce((groups, item) => {
+    if (!item.eventDate || item.eventDate >= todayIsoDate) return groups;
+    const key = `${item.eventDate}:${item.eventName ?? ""}`;
+    if (!groups.has(key)) groups.set(key, { key, date: item.eventDate, name: item.eventName, rows: [] });
+    groups.get(key).rows.push(item);
+    return groups;
+  }, new Map()).values()).sort((a, b) => b.date.localeCompare(a.date) || (a.name ?? "").localeCompare(b.name ?? ""));
+  const resultSections = [
+    { key: "current", title: "Current and upcoming events", groups: [{ key: "current", rows: currentRegistrants }] },
+    { key: "past", title: "Past events and check-ins", groups: pastEventGroups },
+  ];
 
   return (
     <div className="sc-page">
@@ -705,12 +717,12 @@ export default function StaffScanner() {
         <div className="sc-search-section">
           <div className="sc-search-header">
             <h2 className="sc-search-title">
-              {searchQuery.trim() ? "Search Results" : "Registrants & Check-ins"}
+              Search registrants
             </h2>
             <span className="sc-search-subtitle">
               {searchQuery.trim()
-                ? "Filter matching registrants"
-                : "Recent registrants and checked-in attendees"}
+                ? "Matching registrants by event date"
+                : "Current registrations and past event attendance"}
             </span>
           </div>
 
@@ -726,17 +738,21 @@ export default function StaffScanner() {
             {isSearching && <span className="sc-search-spinner" aria-hidden="true" />}
           </div>
 
-          {searchHasRun && searchResults.length === 0 && (
-            <div className="sc-search-empty">
-              {searchQuery.trim()
-                ? `No registrants found matching "${searchQuery}"`
-                : "No registrants found yet."}
-            </div>
-          )}
-
-          {searchResults.length > 0 && (
-            <div className="sc-search-list">
-              {searchResults.map((item, idx) => {
+          {searchHasRun && resultSections.map((section, sectionIndex) => (
+            <section className="sc-result-section" key={section.key} aria-labelledby={`sc-${section.key}-title`}>
+              {sectionIndex > 0 && <hr className="sc-result-divider" />}
+              <h3 className="sc-result-section-title" id={`sc-${section.key}-title`}>{section.title}</h3>
+              {section.groups.length === 0 || section.groups.every((group) => group.rows.length === 0) ? (
+                <div className="sc-search-empty">
+                  {section.key === "past" ? "No past event registrants found." : "No current or upcoming event registrants found."}
+                </div>
+              ) : section.groups.map((group) => (
+                <div className="sc-event-group" key={group.key}>
+                  {section.key === "past" && (
+                    <h4 className="sc-event-group-title">{group.name || "Past event"} <span>{group.date}</span></h4>
+                  )}
+                  <div className="sc-search-list">
+                    {group.rows.map((item, idx) => {
                 const isCheckedIn = Boolean(item.checkedInAt);
                 const isRowBusy = checkingInToken !== null && checkingInToken === item.ticketToken;
                 const isDifferentDate = Boolean(item.eventDate && item.eventDate !== todayIsoDate);
@@ -754,10 +770,9 @@ export default function StaffScanner() {
                       {isCheckedIn ? (
                         <span className="sc-registrant-status sc-registrant-status--checkedin">
                           {item.isLateCheckIn ? "Recorded at" : "✓ Checked in at"}{" "}
-                          {new Date(item.checkedInAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {isPastEvent
+                            ? new Date(item.checkedInAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })
+                            : new Date(item.checkedInAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       ) : isPastEvent ? (
                         <span className="sc-registrant-status sc-registrant-status--mismatch">
@@ -812,9 +827,12 @@ export default function StaffScanner() {
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          )}
+                    })}
+                  </div>
+                </div>
+              ))}
+            </section>
+          ))}
         </div>
       </div>
     </div>
