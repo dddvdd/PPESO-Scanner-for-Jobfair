@@ -397,3 +397,46 @@ scripts/
 - Check the browser console (F12) for errors
 - Run `npm run validate:migrations` to check your SQL files
 - Open an issue on GitHub with what went wrong
+
+## Shared Google event forecasts
+
+Event cards use the `event-weather` Edge Function and a shared Supabase cache.
+The cache key is the saved location (lowercase, trimmed, repeated whitespace
+collapsed) plus event date. Identical pairs share one Google fetch; different
+location spellings are not automatically treated as aliases. Existing location
+resolution is restricted to Cagayan; province-only locations use Tuguegarao.
+
+Only public events from today through the next two Manila dates are fetched.
+Future-event forecasts refresh at Manila midnight; on the event date they
+refresh at 00:00, 03:00, 06:00, and every three hours thereafter. Past events
+stop refreshing. Cached values are hidden after expiry. Provider failures hide
+unavailable icons and back off for one hour. Concurrent workers use an atomic
+DB lease so page refreshes cannot multiply Google requests for the same pair.
+
+Setup:
+1. Apply the `20261008090000_shared_event_weather.sql`,
+   `20261008093000_event_weather_feels_like.sql`, and
+   `20261008094500_event_weather_condition_label.sql` migrations in order.
+2. Enable Google Weather API and billing. Restrict the Google key to Weather API.
+3. Add `GOOGLE_WEATHER_API_KEY` in Supabase Dashboard > Edge Functions > Secrets.
+   Never put this secret in a `VITE_*` variable or commit it to this repository.
+4. Deploy `event-weather` (`supabase functions deploy event-weather --project-ref YOUR_PROJECT_REF`).
+   Its gateway JWT verification is disabled because the function authenticates
+   the project's anon API key itself, including logged-in browser requests.
+   Caller input cannot select arbitrary locations or dates or force a refresh.
+5. In Supabase Vault store the project's public anon key as `weather_anon_key`.
+   Replace the project URL placeholder in `supabase/weather-schedule.sql` and
+   run it in SQL Editor to install the scheduled refresh and expiry cleanup.
+   That script can be rerun without creating duplicate jobs.
+6. Open event cards; the function also fills due cache entries on demand.
+
+Tests: `node --test scripts/verify/event-weather.test.mjs`; `npm run build`.
+Google daily forecasts can be cached up to 24 hours; this implementation uses
+shorter calendar-day/three-hour lifetimes. Google attribution is displayed
+alongside the event cards. Scheduled jobs and Edge Function/database usage
+are separate from Google's free Weather API request allowance.
+The event card shows Google's daily maximum "feels like" temperature in °C
+beside the forecast icon when that value is available. It is a forecast high,
+not a live temperature reading.
+The condition text below the icon distinguishes sunny, cloudy, rainy,
+heavy rain, windy, and thunderstorm forecasts.
