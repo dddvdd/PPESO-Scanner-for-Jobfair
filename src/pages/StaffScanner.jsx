@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { adminRecordLateCheckIn, performCheckIn, staffLookup, listAllEvents, staffCompleteScannerProfile } from "../lib/api.js";
-import { SCANNER_PROFILE_FIELDS } from "../lib/scannerProfileFields.js";
+import { initialProfileAnswers, changeProfileAnswer, profileAnswersToSave } from "../lib/scannerProfileFields.js";
+import MissingProfileFields from "../components/MissingProfileFields.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { describeScanOutcome, getDeviceId, isValidTicketToken } from "../lib/scannerUtils.js";
 import "./StaffScanner.css";
@@ -111,7 +112,7 @@ export default function StaffScanner() {
     const entry = { item, late, eventId, source, fields: result.data.missingFields };
     profileEntryRef.current = entry;
     setProfileEntry(entry);
-    setProfileAnswers({});
+    setProfileAnswers(initialProfileAnswers(entry.fields));
     setProfileError("");
     resultActiveRef.current = true;
     pauseScanning();
@@ -127,7 +128,11 @@ export default function StaffScanner() {
     const pending = profileEntry;
     let saved = false;
     try {
-      const result = await staffCompleteScannerProfile(pending.item.ticketToken, profileAnswers);
+      if (pending.fields.some((key) => !profileAnswers[key]?.trim())) {
+        setProfileError("Please complete all missing details.");
+        return;
+      }
+      const result = await staffCompleteScannerProfile(pending.item.ticketToken, profileAnswersToSave(pending.fields, profileAnswers));
       saved = result.ok && result.data?.status === "ok";
       if (!saved) setProfileError("Unable to save. Complete all fields with valid answers and try again.");
     } finally {
@@ -662,21 +667,10 @@ export default function StaffScanner() {
             <p>{profileEntry.item.applicantName} ({profileEntry.item.registrationNumber})</p>
             <p>Save these required details to continue check-in.</p>
             <fieldset disabled={processing} style={{ border: 0, padding: 0 }}>
-              {profileEntry.fields.map((key) => {
-                const field = SCANNER_PROFILE_FIELDS[key];
-                if (!field) return null;
-                const props = { id: `scanner-profile-${key}`, className: "sc-search-input", required: true,
-                  value: profileAnswers[key] ?? "",
-                  onChange: (event) => setProfileAnswers((current) => ({ ...current, [key]: event.target.value })) };
-                return <div className="field" key={key}>
-                  <label htmlFor={props.id}>{field.label} *</label>
-                  {field.options ? <select {...props}>
-                    <option value="">Select an answer</option>
-                    {field.options.map((value) => <option key={value} value={value}>{value === "yes" ? "Yes" : value === "no" ? "No" : value}</option>)}
-                  </select> : <input {...props} type={field.type} maxLength={200}
-                    max={field.type === "date" ? todayIsoDate : undefined} />}
-                </div>;
-              })}
+              <MissingProfileFields fields={profileEntry.fields} answers={profileAnswers}
+                disabled={processing} idPrefix="scanner-profile" maxDate={todayIsoDate}
+                onChange={(key, value) => setProfileAnswers((current) =>
+                  changeProfileAnswer(current, key, value, profileEntry.fields))} />
             </fieldset>
             {profileError && <p role="alert">{profileError}</p>}
             <button className="sc-btn sc-btn--primary" type="submit" disabled={processing}>

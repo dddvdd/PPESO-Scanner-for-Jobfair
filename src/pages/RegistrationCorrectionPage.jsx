@@ -1,20 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import MissingProfileFields from "../components/MissingProfileFields.jsx";
+import { SCANNER_PROFILE_FIELDS, initialProfileAnswers, changeProfileAnswer, profileAnswersToSave } from "../lib/scannerProfileFields.js";
 import { registrationCorrectionDetails, submitRegistrationCorrection } from "../lib/api.js";
 
-const CORRECTION_FIELDS = {
-  date_of_birth: { label: "Date of Birth", type: "date" },
-  course: { label: "Highest Educational Attainment", type: "text" },
-  pwd: { label: "PWD?", type: "choice", options: ["Yes", "No"] },
-  sex: { label: "Sex", type: "choice", options: ["Male", "Female"] },
-  first_time_job_seeker: { label: "FIRST TIME JOB SEEKER", type: "yesNo" },
-  returning_ofw: { label: "RETURNING OFW", type: "yesNo" },
-  returning_worker: { label: "RETURNING WORKER", type: "yesNo" },
-  interested_in_skills_training: { label: "INTERESTED IN SKILLS TRAINING", type: "choice", options: ["Yes", "No"] },
-  province: { label: "Province", type: "text" },
-  municipality_city: { label: "Municipality/City", type: "text" },
-  barangay: { label: "Barangay", type: "text" },
-};
+const CORRECTION_FIELDS = SCANNER_PROFILE_FIELDS;
 
 function correctionToken() {
   return new URLSearchParams(window.location.hash.slice(1)).get("token") ?? "";
@@ -50,7 +40,7 @@ export default function RegistrationCorrectionPage() {
         return;
       }
       setDetails({ ...result.data, missing_fields: missingFields });
-      setAnswers(Object.fromEntries(missingFields.map((key) => [key, ""])));
+      setAnswers(initialProfileAnswers(missingFields));
       setStatus("ready");
     });
 
@@ -58,15 +48,7 @@ export default function RegistrationCorrectionPage() {
   }, [token]);
 
   function changeAnswer(field, value) {
-    setAnswers((current) => {
-      const next = { ...current, [field]: value };
-      if (value === "yes" && ["first_time_job_seeker", "returning_ofw", "returning_worker"].includes(field)) {
-        for (const sibling of ["first_time_job_seeker", "returning_ofw", "returning_worker"]) {
-          if (sibling !== field && Object.hasOwn(next, sibling)) next[sibling] = "no";
-        }
-      }
-      return next;
-    });
+    setAnswers((current) => changeProfileAnswer(current, field, value, details.missing_fields));
   }
 
   async function handleSubmit(event) {
@@ -76,12 +58,14 @@ export default function RegistrationCorrectionPage() {
     const firstMissing = details.missing_fields.find((key) => !answers[key]?.trim());
     if (firstMissing) {
       document.getElementById(`correction-${firstMissing}`)?.focus();
+      document.getElementById(`addr-${firstMissing}`)?.focus();
+      document.querySelector(`#field-${firstMissing} input`)?.focus();
       setError(`Please complete ${CORRECTION_FIELDS[firstMissing].label}.`);
       return;
     }
 
     setBusy(true);
-    const result = await submitRegistrationCorrection(token, answers);
+    const result = await submitRegistrationCorrection(token, profileAnswersToSave(details.missing_fields, answers));
     setBusy(false);
     if (!result.ok) {
       setError(result.error.message);
@@ -132,50 +116,9 @@ export default function RegistrationCorrectionPage() {
       <form className="form-stack" onSubmit={handleSubmit} noValidate>
         <fieldset className="form-section">
           <legend>Missing registration details</legend>
-          {details.missing_fields.map((key) => {
-            const field = CORRECTION_FIELDS[key];
-            const inputId = `correction-${key}`;
-            if (field.type === "choice" || field.type === "yesNo") {
-              const options = field.type === "yesNo" ? ["yes", "no"] : field.options;
-              return (
-                <div className="field" key={key}>
-                  <span id={`${inputId}-label`} className="group-label">{field.label} *</span>
-                  <div role="radiogroup" aria-labelledby={`${inputId}-label`}>
-                    {options.map((option, index) => (
-                      <label className="choice" key={option}>
-                        <input
-                          id={index === 0 ? inputId : `${inputId}-${index}`}
-                          type="radio"
-                          name={key}
-                          required
-                          value={option}
-                          checked={answers[key] === option}
-                          disabled={busy}
-                          onChange={() => changeAnswer(key, option)}
-                        />
-                        {option === "yes" ? "Yes" : option === "no" ? "No" : option}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              );
-            }
-            return (
-              <div className="field" key={key}>
-                <label htmlFor={inputId}>{field.label} *</label>
-                <input
-                  id={inputId}
-                  type={field.type}
-                  required
-                  maxLength={field.type === "text" ? 200 : undefined}
-                  max={field.type === "date" ? new Date().toISOString().slice(0, 10) : undefined}
-                  value={answers[key] ?? ""}
-                  disabled={busy}
-                  onChange={(event) => changeAnswer(key, event.target.value)}
-                />
-              </div>
-            );
-          })}
+          <MissingProfileFields fields={details.missing_fields} answers={answers}
+            disabled={busy} onChange={changeAnswer} idPrefix="correction"
+            maxDate={new Date().toISOString().slice(0, 10)} />
         </fieldset>
         {error && <p role="alert" className="alert alert--error">{error}</p>}
         <button type="submit" className="btn btn--primary btn--block" disabled={busy}>
