@@ -11,6 +11,10 @@ const CARD_TIPS = {
     "You previously worked overseas as an Overseas Filipino Worker and are now seeking employment again.",
   returning_worker:
     "Workers who originate from Cagayan, sought employment outside the province, and have now returned home to find work within the province.",
+  currently_employed:
+    "You have a job right now — full-time, part-time, casual, or self-employed.",
+  unemployed_seeking_employment:
+    "You are not working at the moment and are looking for work at this job fair.",
 };
 
 function tipFor(key, label) {

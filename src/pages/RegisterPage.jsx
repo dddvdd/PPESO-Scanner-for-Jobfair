@@ -28,6 +28,8 @@ const EXCLUSIVE_YES_FIELDS = [
   ["first_time_job_seeker", "first time job seeker?"],
   ["returning_ofw", "returning ofw?"],
   ["returning_worker", "returning worker?"],
+  ["currently_employed", "employed / currently employed"],
+  ["unemployed_seeking_employment", "unemployed but seeking employment"],
 ];
 
 function resolveExclusiveGroups(allFields) {
