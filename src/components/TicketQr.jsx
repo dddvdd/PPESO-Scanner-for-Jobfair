@@ -11,22 +11,16 @@ import QRCode from "qrcode";
  * qrcode library (no user-controlled content) and is injected as-is.
  */
 export default function TicketQr({ value, size = 176 }) {
-  const [svg, setSvg] = useState(null);
+  const [dataUrl, setDataUrl] = useState(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!value) return undefined;
     let alive = true;
     setFailed(false);
-    QRCode.toString(value, { type: "svg", margin: 1, errorCorrectionLevel: "M" })
-      .then((markup) => {
-        if (alive) {
-          setSvg(
-            typeof markup === "string"
-              ? markup.replace("<svg ", `<svg width="${size}" height="${size}" `)
-              : null
-          );
-        }
+    QRCode.toDataURL(value, { margin: 1, errorCorrectionLevel: "M", width: size })
+      .then((url) => {
+        if (alive) setDataUrl(url);
       })
       .catch(() => {
         if (alive) setFailed(true);
@@ -39,15 +33,18 @@ export default function TicketQr({ value, size = 176 }) {
   if (!value || failed) {
     return <p className="qr-status">QR preview unavailable.</p>;
   }
-  if (!svg) {
+  if (!dataUrl) {
     return <p className="qr-status">Preparing QR…</p>;
   }
   return (
-    <div
-      role="img"
-      aria-label="Ticket QR code"
-      style={{ lineHeight: 0 }}
-      dangerouslySetInnerHTML={{ __html: svg }}
+    <img
+      src={dataUrl}
+      alt="Ticket QR code"
+      width={size}
+      height={size}
+      className="ticket-qr-img"
+      style={{ display: "block", margin: "0 auto" }}
     />
   );
 }
+

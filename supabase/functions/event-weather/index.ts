@@ -1,25 +1,52 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { forecastExpiry, googleFeelsLikeHigh, googleWeatherKind, googleWeatherLabel, resolveLocation, selectForecast } from "./weather.mjs";
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-  status, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" },
-});
+function getCorsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get("origin");
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+  if (!origin) return headers;
+
+  const envOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  const isAllowed = envOrigins.includes(origin) || isLocal;
+
+  if (isAllowed) {
+    headers["Access-Control-Allow-Origin"] = origin;
+    headers["Vary"] = "Origin";
+  }
+  return headers;
+}
+
+const json = (body: unknown, status = 200, cors: Record<string, string> = {}) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
+
 Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
-  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  const cors = getCorsHeaders(request);
+  if (request.method === "OPTIONS") {
+    if (request.headers.get("origin") && !cors["Access-Control-Allow-Origin"]) {
+      return new Response(null, { status: 403, headers: cors });
+    }
+    return new Response(null, { status: 204, headers: cors });
+  }
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, cors);
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   if (!anonKey || (request.headers.get("apikey") !== anonKey
     && request.headers.get("authorization") !== `Bearer ${anonKey}`)) {
-    return json({ error: "Unauthorized" }, 401);
+    return json({ error: "Unauthorized" }, 401, cors);
   }
   const url = Deno.env.get("SUPABASE_URL");
   const secret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const key = Deno.env.get("GOOGLE_WEATHER_API_KEY");
-  if (!url || !secret || !key) return json({ error: "Weather service is not configured" }, 503);
+  if (!url || !secret || !key) return json({ error: "Weather service is not configured" }, 503, cors);
   const db = createClient(url, secret, { auth: { persistSession: false } });
   try {
     // Request input cannot choose a location/date; only public event records can.
@@ -55,8 +82,8 @@ Deno.serve(async (request) => {
     }));
     const { data, error: readError } = await db.rpc("read_event_weather_display");
     if (readError) throw readError;
-    return json({ forecasts: data ?? [] });
+    return json({ forecasts: data ?? [] }, 200, cors);
   } catch {
-    return json({ error: "Weather service unavailable" }, 503);
+    return json({ error: "Weather service unavailable" }, 503, cors);
   }
 });

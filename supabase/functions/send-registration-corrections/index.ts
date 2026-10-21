@@ -16,11 +16,28 @@ const allowedFields = [
 
 const batchSize = 100;
 const expiryDays = 7;
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+function getCorsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get("origin");
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+  if (!origin) return headers;
+
+  const envOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  const isAllowed = envOrigins.includes(origin) || isLocal;
+
+  if (isAllowed) {
+    headers["Access-Control-Allow-Origin"] = origin;
+    headers["Vary"] = "Origin";
+  }
+  return headers;
+}
 
 type Candidate = {
   id: string;
@@ -29,10 +46,10 @@ type Candidate = {
   form_data: Record<string, unknown> | null;
 };
 
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(body: unknown, status = 200, cors: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...cors, "Content-Type": "application/json" },
   });
 }
 
@@ -91,9 +108,20 @@ Public Employment Service Office`;
 }
 
 Deno.serve(async (request) => {
+  const cors = getCorsHeaders(request);
   if (request.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    if (request.headers.get("origin") && !cors["Access-Control-Allow-Origin"]) {
+      return new Response(null, { status: 403, headers: cors });
+    }
+    return new Response(null, { status: 204, headers: cors });
   }
+
+  const jsonResponse = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+
   if (request.method !== "POST") return jsonResponse({ error: "Method not allowed." }, 405);
 
   try {
@@ -129,8 +157,8 @@ Deno.serve(async (request) => {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId)) {
       return jsonResponse({ error: "Select a valid event." }, 400);
     }
-    if (action !== "preview" && action !== "send") {
-      return jsonResponse({ error: "Choose preview or send." }, 400);
+    if (action !== "preview" && action !== "send" && action !== "status") {
+      return jsonResponse({ error: "Choose preview, send, or status." }, 400);
     }
 
     const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
@@ -162,6 +190,62 @@ Deno.serve(async (request) => {
       }
       registrations.push(...(data ?? []));
       if ((data?.length ?? 0) < 500) break;
+    }
+
+    if (action === "status") {
+      const latestByRegistration = new Map<string, {
+        email_status: string;
+        email_status_updated_at: string | null;
+      }>();
+      for (let offset = 0; offset < registrations.length; offset += 500) {
+        const registrationIds = registrations.slice(offset, offset + 500).map((registration) => registration.id);
+        for (let page = 0; ; page += 1) {
+          const { data, error } = await serviceClient
+            .from("registration_correction_tokens")
+            .select("registration_id, email_status, created_at, email_status_updated_at")
+            .in("registration_id", registrationIds)
+            .order("created_at", { ascending: false })
+            .order("token_hash", { ascending: false })
+            .range(page * 500, page * 500 + 499);
+          if (error) {
+            console.error("Could not load correction email delivery status.");
+            return jsonResponse({ error: "Could not load correction email delivery status." }, 500);
+          }
+          for (const record of data ?? []) {
+            if (!latestByRegistration.has(record.registration_id)) {
+              latestByRegistration.set(record.registration_id, record);
+            }
+          }
+          if ((data?.length ?? 0) < 500) break;
+        }
+      }
+
+      const counts = {
+        unknown: 0,
+        pending: 0,
+        sent: 0,
+        delivered: 0,
+        bounced: 0,
+        complained: 0,
+        delayed: 0,
+        failed: 0,
+      };
+      let updatedAt: string | null = null;
+      for (const record of latestByRegistration.values()) {
+        if (record.email_status in counts) {
+          counts[record.email_status as keyof typeof counts] += 1;
+        }
+        if (record.email_status_updated_at && (!updatedAt || record.email_status_updated_at > updatedAt)) {
+          updatedAt = record.email_status_updated_at;
+        }
+      }
+      return jsonResponse({
+        status: "ok",
+        eventName: event.name,
+        total: latestByRegistration.size,
+        counts,
+        updatedAt,
+      });
     }
 
     const candidates = registrations.flatMap((registration) => {
@@ -202,6 +286,20 @@ Deno.serve(async (request) => {
       skipped += 1;
       return false;
     });
+    const markBatchFailed = async (tokenHashes: string[]) => {
+      const failedAt = new Date().toISOString();
+      const { error } = await serviceClient
+        .from("registration_correction_tokens")
+        .update({
+          revoked_at: failedAt,
+          email_status: "failed",
+          email_status_updated_at: failedAt,
+        })
+        .in("token_hash", tokenHashes)
+        .is("sent_at", null)
+        .is("used_at", null);
+      if (error) console.error("Could not mark correction email batch as failed.");
+    };
 
     for (let offset = 0; offset < sendable.length; offset += batchSize) {
       const batch = sendable.slice(offset, offset + batchSize);
@@ -214,7 +312,7 @@ Deno.serve(async (request) => {
           token_hash: tokenHash,
           missing_fields: candidate.missingFields,
           expires_at: expiresAt,
-          sent_at: new Date().toISOString(),
+          email_status: "pending",
           token,
           expiresAt,
         };
@@ -272,35 +370,56 @@ Deno.serve(async (request) => {
         });
       } catch {
         console.error("Email provider request failed before returning a response.");
-        const { error: cleanupError } = await serviceClient
-          .from("registration_correction_tokens")
-          .update({ revoked_at: new Date().toISOString() })
-          .in("token_hash", tokenRecords.map((record) => record.token_hash))
-          .is("used_at", null);
-        if (cleanupError) console.error("Could not revoke correction links for failed email batch.");
+        await markBatchFailed(tokenRecords.map((record) => record.token_hash));
         failed += batch.length;
         continue;
       }
 
       if (!response.ok) {
         console.error(`Email provider rejected a correction batch (HTTP ${response.status}).`);
-        const { error: cleanupError } = await serviceClient
-          .from("registration_correction_tokens")
-          .update({ revoked_at: new Date().toISOString() })
-          .in("token_hash", tokenRecords.map((record) => record.token_hash))
-          .is("used_at", null);
-        if (cleanupError) console.error("Could not revoke correction links for rejected email batch.");
+        await markBatchFailed(tokenRecords.map((record) => record.token_hash));
         failed += batch.length;
         continue;
       }
 
-      const providerResult = await response.json();
-      if (!Array.isArray(providerResult.data) || providerResult.data.length !== batch.length) {
-        console.error("Email provider returned an unexpected batch response; delivery may be partial.");
+      let providerResult: { data?: unknown };
+      try {
+        providerResult = await response.json();
+      } catch {
+        console.error("Email provider returned an unreadable batch response.");
+        await markBatchFailed(tokenRecords.map((record) => record.token_hash));
         failed += batch.length;
         continue;
       }
-      sent += batch.length;
+      const providerMessages = Array.isArray(providerResult.data) ? providerResult.data : [];
+      const acceptedItems = tokenRecords.flatMap((record, index) => {
+        const emailId = providerMessages[index]?.id;
+        return typeof emailId === "string" && emailId !== ""
+          ? [{ token_hash: record.token_hash, email_id: emailId }]
+          : [];
+      });
+      const rejectedTokens = tokenRecords.filter((record, index) => {
+        const emailId = providerMessages[index]?.id;
+        return typeof emailId !== "string" || emailId === "";
+      });
+      if (acceptedItems.length > 0) {
+        const { data: recordedCount, error: recordError } = await serviceClient.rpc(
+          "record_registration_correction_email_sends",
+          { p_items: acceptedItems },
+        );
+        if (recordError || recordedCount !== acceptedItems.length) {
+          console.error("Could not store accepted correction email IDs for delivery tracking.");
+          return jsonResponse({
+            error: "Some emails may have been accepted, but their delivery status could not be recorded. Check Resend before retrying.",
+          }, 503);
+        }
+        sent += acceptedItems.length;
+      }
+      if (rejectedTokens.length > 0) {
+        console.error("Email provider returned missing message IDs for part of a correction batch.");
+        await markBatchFailed(rejectedTokens.map((record) => record.token_hash));
+        failed += rejectedTokens.length;
+      }
     }
 
     return jsonResponse({ status: "ok", eventName: event.name, eligible: candidates.length, sent, failed, skipped, expiryDays });

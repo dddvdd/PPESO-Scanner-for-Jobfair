@@ -10,6 +10,8 @@
     "validate:scope": "node scripts/validate-scope.mjs",
     "validate:config": "node scripts/validate-config-safety.mjs",
     "validate:migrations": "node scripts/validate-migrations.mjs",
+    "test": "node --test tests/*.test.js",
+    "test:security": "node --test tests/secret-scan.test.js tests/access-control.test.js tests/rls-policies.test.js tests/injection.test.js tests/xss-defense.test.js tests/cors.test.js tests/debug-routes.test.js tests/dependency-audit.test.js tests/agent-config.test.js tests/prompt-injection.test.js",
     "verify:selfcheck": "node scripts/verify/selfcheck.mjs",
     "verify:env": "node scripts/verify/check-env.mjs",
     "verify:connect": "node scripts/verify/connectivity.mjs",

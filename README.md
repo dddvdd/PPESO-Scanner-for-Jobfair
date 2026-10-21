@@ -290,8 +290,9 @@ is not sent in normal web requests.
 
 ### Configure and deploy
 
-1. Apply `supabase/migrations/20261007140000_registration_data_correction_links.sql`
-   in the Supabase SQL Editor.
+1. Apply these migrations, in order, in the Supabase SQL Editor:
+   - `supabase/migrations/20261007140000_registration_data_correction_links.sql`
+   - `supabase/migrations/20261007150000_registration_correction_email_tracking.sql`
 2. Verify your sender domain in Resend.
 3. In Supabase Dashboard → **Edge Functions → Secrets**, set:
    - `RESEND_API_KEY` — the Resend API key.
@@ -299,16 +300,27 @@ is not sent in normal web requests.
      example `PESO <no-reply@example.gov.ph>`.
    - `APP_BASE_URL` — the public HTTPS origin where this app is deployed,
      without a trailing slash.
-4. Deploy the function from the project root:
+4. In Resend, create a webhook pointing to
+   `https://YOUR_PROJECT_REF.supabase.co/functions/v1/resend-registration-correction-webhook`.
+   Subscribe to `email.sent`, `email.delivered`, `email.bounced`,
+   `email.complained`, `email.delivery_delayed`, `email.failed`, and
+   `email.suppressed`. Copy that endpoint's signing secret to Supabase Edge
+   Function secrets as `RESEND_WEBHOOK_SECRET`.
+5. Deploy both functions from the project root:
 
    ```powershell
    supabase functions deploy send-registration-corrections --project-ref YOUR_PROJECT_REF
+   supabase functions deploy resend-registration-correction-webhook --project-ref YOUR_PROJECT_REF
    ```
 
-5. Deploy the frontend containing the registration-correction page.
-6. Sign in as an administrator, open **Admin → Export**, select the event,
+6. Deploy the frontend containing the registration-correction page and email
+   status panel.
+7. Sign in as an administrator, open **Admin → Export**, select the event,
    and click **Preview affected preregistrants**. Check the number before
    choosing **Send correction emails** and confirming the prompt.
+8. In the same panel, use **Refresh email status** to view the latest status
+   per preregistrant: accepted, delivered, bounced, delayed, failed, or spam
+   complaint.
 
 The preview reports a count only. Email addresses remain in the server-side
 function and are not returned to the browser. The sender uses the registered
@@ -318,9 +330,12 @@ answer among Date of Birth, Highest Educational Attainment, PWD, Sex,
 First-time Job Seeker, Returning OFW, Returning Worker, Interested in Skills
 Training, Province, Municipality/City, and Barangay.
 
-The send result is provider acceptance, not a guarantee of inbox delivery.
-Review delivery/bounce status in Resend. Failed addresses remain uncorrected;
-do not infer answers for them.
+“Accepted by Resend” means the provider accepted the send request. “Delivered”
+means the recipient's mail server accepted the message; it cannot confirm inbox
+placement or that the person saw it. The admin status panel is updated by
+Resend webhooks and can be refreshed manually. Delivery statuses are also
+available in Resend. Failed or bounced addresses remain uncorrected; do not
+infer answers for them.
 
 ---
 

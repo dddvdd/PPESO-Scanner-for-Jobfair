@@ -1,2 +1,5 @@
+[functions.resend-registration-correction-webhook]
+verify_jwt = false
+
 [functions.event-weather]
 verify_jwt = false

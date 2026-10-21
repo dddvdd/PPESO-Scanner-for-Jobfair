@@ -732,6 +732,9 @@ function ExportPanel() {
   const [error, setError] = useState(null);
   const [correctionPreview, setCorrectionPreview] = useState(null);
   const [correctionBusy, setCorrectionBusy] = useState(false);
+  const [correctionStatus, setCorrectionStatus] = useState(null);
+  const [correctionStatusBusy, setCorrectionStatusBusy] = useState(false);
+  const [correctionStatusRefresh, setCorrectionStatusRefresh] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -742,6 +745,32 @@ function ExportPanel() {
     });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!selectedEventId) {
+      setCorrectionStatus(null);
+      return undefined;
+    }
+
+    let active = true;
+    setCorrectionStatus(null);
+    setCorrectionStatusBusy(true);
+    adminRegistrationCorrectionCampaign(selectedEventId, "status").then((result) => {
+      if (!active) return;
+      if (!result.ok) {
+        setError(`Could not load correction email status: ${result.error.message}`);
+        return;
+      }
+      if (result.data?.status !== "ok") {
+        setError(result.data?.error ?? "Could not load correction email status.");
+        return;
+      }
+      setCorrectionStatus({ ...result.data, eventId: selectedEventId });
+    }).finally(() => {
+      if (active) setCorrectionStatusBusy(false);
+    });
+    return () => { active = false; };
+  }, [selectedEventId, correctionStatusRefresh]);
 
   const selectedEvent = (events ?? []).find((ev) => ev.id === selectedEventId) || null;
 
@@ -785,7 +814,8 @@ function ExportPanel() {
       return;
     }
     setCorrectionPreview(null);
-    flash(`Correction emails: ${result.data.sent} sent, ${result.data.failed} failed, ${result.data.skipped} invalid email addresses skipped.`);
+    flash(`Resend accepted ${result.data.sent} emails; ${result.data.failed} failed and ${result.data.skipped} invalid addresses were skipped. Refresh status below for delivery updates.`);
+    setCorrectionStatusRefresh((version) => version + 1);
   }
 
   async function handleExportPreRegistrants() {
@@ -850,6 +880,7 @@ function ExportPanel() {
             onChange={(e) => {
               setSelectedEventId(e.target.value);
               setCorrectionPreview(null);
+              setCorrectionStatus(null);
             }}
           >
             <option value="">{noEvents ? "No events available" : "Select event"}</option>
@@ -921,6 +952,38 @@ function ExportPanel() {
                 Send correction emails
               </button>
             </>
+          )}
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <button
+            type="button"
+            className="btn btn--ghost btn--small"
+            disabled={!selectedEventId || correctionStatusBusy || correctionBusy}
+            onClick={() => setCorrectionStatusRefresh((version) => version + 1)}
+          >
+            {correctionStatusBusy ? "Refreshing status…" : "Refresh email status"}
+          </button>
+          {correctionStatus?.eventId === selectedEventId && (
+            <div aria-live="polite" style={{ marginTop: 12 }}>
+              <p className="field-hint">
+                Latest correction email per preregistrant ({correctionStatus.total.toLocaleString()} total):
+                {" "}status unavailable for older sends {correctionStatus.counts.unknown.toLocaleString()},
+                {" "}Pending {correctionStatus.counts.pending.toLocaleString()},
+                {" "}accepted by Resend {correctionStatus.counts.sent.toLocaleString()},
+                {" "}delivered to mail server {correctionStatus.counts.delivered.toLocaleString()},
+                {" "}bounced {correctionStatus.counts.bounced.toLocaleString()},
+                {" "}delayed {correctionStatus.counts.delayed.toLocaleString()},
+                {" "}failed {correctionStatus.counts.failed.toLocaleString()},
+                {" "}spam complaints {correctionStatus.counts.complained.toLocaleString()}.
+              </p>
+              <p className="field-hint">
+                “Delivered” means the recipient’s mail server accepted the email; it does not confirm inbox placement or that the person saw it.
+                {" "}Updates arrive through the configured Resend webhook; check the webhook delivery log in Resend if statuses stay unchanged.
+                {correctionStatus.updatedAt
+                  ? ` Last event: ${new Date(correctionStatus.updatedAt).toLocaleString()}.`
+                  : ""}
+              </p>
+            </div>
           )}
         </div>
       </div>

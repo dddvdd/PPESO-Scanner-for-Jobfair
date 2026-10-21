@@ -38,19 +38,30 @@ for (const file of files) {
     continue; // binary
   }
 
+  // Ignore private local environment files; placeholders like YOUR_PROJECT_REF are safe.
+  const isLocalEnv = rel === ".env" || rel.startsWith(".env.");
+
   // JWT-like secret material anywhere
   if (/eyJ[A-Za-z0-9_-]{30,}/.test(text)) {
     problems.push(`JWT-like token found in ${rel}`);
   }
 
-  // Ignore private local environment files; placeholders like YOUR_PROJECT_REF are safe.
-  const isLocalEnv = rel === ".env" || rel.startsWith(".env.");
+  // API secret keys (e.g. sk- prefix)
+  if (!isLocalEnv && /\bsk-[a-zA-Z0-9_-]{20,}\b/.test(text)) {
+    problems.push(`Secret API key (sk-...) found in ${rel}`);
+  }
+
+  // Private key blocks
+  if (/-----BEGIN (RSA |EC )?PRIVATE KEY-----/.test(text)) {
+    problems.push(`Private key found in ${rel}`);
+  }
+
   if (!isLocalEnv && /[a-z0-9]{20}\.supabase\.co/.test(text)) {
     problems.push(`Hard-coded Supabase project URL found in ${rel}`);
   }
 
   // Service-role credentials must never be bundled into code delivered to browsers.
-  if (clientCode(file) && /service_role/i.test(text)) {
+  if (clientCode(file) && /(service_role|SUPABASE_SERVICE)/i.test(text)) {
     problems.push(`service_role reference found in ${rel}`);
   }
 }
