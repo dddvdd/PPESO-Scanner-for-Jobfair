@@ -132,7 +132,7 @@ $env:SEP11_HTTPS = "1"; npm run dev
 | `supabase/migrations/` | Same changes split into 6 ordered files — for projects that already exist |
 | `.env` | Your two keys (never commit) |
 | `vercel.json` | Deploy config — SPA routing + camera permission header |
-| `README.md` / `mvp_scope.md` | Deep details / full spec |
+| `README.md` / `docs/mvp_scope.md` | Deep details / full spec |
 
 ---
 

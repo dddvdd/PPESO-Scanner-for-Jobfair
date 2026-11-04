@@ -36,11 +36,10 @@ export default function RegistrationSuccess() {
 
   return (
     <section className="page">
-      <div className="glass-card hero-card">
-        <p className="page-kicker">Registration complete</p>
-        <h1 className="page-title">You&apos;re registered! 🎉</h1>
+      <div className="hero-card success-heading">
+        <h1 className="page-title">Registration complete</h1>
         <p className="page-lead">
-          Your registration was received successfully. Your QR ticket is ready.
+          Save a screenshot of your QR ticket below and show it to staff at check-in.
         </p>
       </div>
 

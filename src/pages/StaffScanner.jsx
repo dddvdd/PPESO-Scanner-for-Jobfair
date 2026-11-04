@@ -557,9 +557,6 @@ export default function StaffScanner() {
 
   return (
     <div className="sc-page">
-      <span className="sc-orb sc-orb--indigo" aria-hidden="true" />
-      <span className="sc-orb sc-orb--cyan" aria-hidden="true" />
-      <span className="sc-orb sc-orb--pink" aria-hidden="true" />
 
       <div className="sc-shell">
         <div className="sc-topbar">
@@ -710,7 +707,7 @@ export default function StaffScanner() {
 
         <div className="sc-search-section">
           <div className="sc-search-header">
-            <h2 className="sc-search-title">
+            <h2 className="sc-search-title" id="registrant-search-heading">
               Search registrants
             </h2>
             <span className="sc-search-subtitle">
@@ -723,6 +720,7 @@ export default function StaffScanner() {
           <div className="sc-search-box">
             <input
               type="search"
+              aria-labelledby="registrant-search-heading"
               className="sc-search-input"
               placeholder="Search all registrants by name..."
               value={searchQuery}

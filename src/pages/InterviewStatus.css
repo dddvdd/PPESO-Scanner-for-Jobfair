@@ -7,22 +7,20 @@
   flex-wrap: wrap;
   padding: 18px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.06);
-  -webkit-backdrop-filter: blur(24px) saturate(170%);
-  backdrop-filter: blur(24px) saturate(170%);
+  border-radius: var(--r-md);
+  background: var(--bg-1);
 }
 
 .interview-search .field {
   flex: 1;
-  min-width: 200px;
+  min-width: min(200px, 100%);
 }
 
 .interview-search .field > label {
   display: block;
   margin-bottom: 7px;
-  color: rgba(245, 245, 247, 0.9);
-  font-size: 14px;
+  color: var(--text);
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -30,17 +28,17 @@
   width: 100%;
   min-height: 48px;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--r-sm);
   border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.08);
-  color: #f5f5f7;
+  background: var(--bg-0);
+  color: var(--text);
   font: inherit;
   font-size: 16px;
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .interview-search input[type="search"]::placeholder {
-  color: rgba(245, 245, 247, 0.42);
+  color: var(--text-faint);
 }
 
 .interview-search input[type="search"]:focus {

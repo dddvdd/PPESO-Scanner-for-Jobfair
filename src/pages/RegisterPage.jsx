@@ -259,9 +259,9 @@ export default function RegisterPage() {
 
       setBanner({
         kind: "application",
-        message: consentMissing
-          ? CONSENT_ERROR
-          : "Please fix the highlighted fields before continuing.",
+        message: firstInvalidIdentity || firstInvalidField
+          ? "Please fix the highlighted fields before continuing."
+          : CONSENT_ERROR,
       });
       return;
     }
@@ -366,9 +366,10 @@ export default function RegisterPage() {
   return (
     <section className="page">
       <div>
-        <p className="page-kicker">Registration</p>
+        <Link className="link back-link" to="/events">Back to events</Link>
         <h1 className="page-title">Register{eventName ? ` — ${eventName}` : ""}</h1>
         {form?.name && <p className="page-lead mt-8">{form.name}</p>}
+        <p className="page-lead mt-8">Complete your details below. After submitting, save your QR ticket for event check-in.</p>
       </div>
 
       {banner && (

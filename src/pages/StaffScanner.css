@@ -1,21 +1,21 @@
 /* ============================================================
-   StaffScanner — iOS-inspired frosted-glass check-in console.
+   StaffScanner — focused check-in console using shared PPESO tokens.
    Every rule is scoped under .sc-page so nothing leaks into
    other routes (this file is loaded with the lazy chunk).
    ============================================================ */
 
 .sc-page {
-  --sc-text: #f5f5f7;
-  --sc-text-dim: rgba(235, 235, 245, 0.66);
-  --sc-blue: #0a84ff;
-  --sc-blue-soft: #79bcff;
-  --sc-green: #30d158;
-  --sc-amber: #ffb340;
-  --sc-red: #ff6b61;
-  --sc-glass: rgba(255, 255, 255, 0.07);
-  --sc-glass-strong: rgba(255, 255, 255, 0.12);
-  --sc-edge: rgba(255, 255, 255, 0.14);
-  --sc-blur: blur(24px) saturate(170%);
+  --sc-text: var(--text);
+  --sc-text-dim: var(--text-dim);
+  --sc-blue: var(--blue);
+  --sc-blue-soft: var(--blue-soft);
+  --sc-green: var(--green);
+  --sc-amber: var(--amber);
+  --sc-red: var(--red);
+  --sc-glass: var(--glass);
+  --sc-glass-strong: var(--glass-strong);
+  --sc-edge: var(--edge);
+  --sc-blur: none;
 
   position: relative;
   overflow: hidden;
@@ -24,12 +24,9 @@
   justify-content: center;
   align-items: flex-start;
   padding: clamp(16px, 4vw, 44px) 16px clamp(48px, 7vw, 80px);
-  background:
-    radial-gradient(120% 90% at 50% 0%, #141829 0%, rgba(20, 24, 41, 0) 55%),
-    linear-gradient(180deg, #07080d 0%, #0a0d17 55%, #0d1020 100%);
+  background: var(--bg-0);
   color: var(--sc-text);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -45,57 +42,16 @@
   border-radius: 12px;
 }
 
-/* --- Ambient light orbs behind the glass -------------------- */
-
-.sc-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(90px);
-  pointer-events: none;
-}
-
-.sc-orb--indigo {
-  width: 380px;
-  height: 380px;
-  top: -120px;
-  left: -110px;
-  background: rgba(94, 92, 230, 0.38);
-}
-
-.sc-orb--cyan {
-  width: 320px;
-  height: 320px;
-  bottom: -80px;
-  right: -90px;
-  background: rgba(100, 210, 255, 0.22);
-}
-
-.sc-orb--pink {
-  width: 260px;
-  height: 260px;
-  bottom: 22%;
-  left: 6%;
-  background: rgba(255, 55, 95, 0.16);
-}
-
 /* --- Shell --------------------------------------------------- */
 
 .sc-shell {
   position: relative;
   width: 100%;
-  max-width: 440px;
+  max-width: 560px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 24px 22px 22px;
-  border-radius: 30px;
-  background: var(--sc-glass);
-  border: 1px solid var(--sc-edge);
-  -webkit-backdrop-filter: var(--sc-blur);
-  backdrop-filter: var(--sc-blur);
-  box-shadow:
-    0 28px 70px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  padding: 0;
 }
 
 .sc-topbar {
@@ -103,6 +59,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .sc-header-left {
@@ -114,11 +71,9 @@
 
 .sc-kicker {
   margin: 0 0 3px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--sc-blue-soft);
+  font-size: 13px;
+  color: var(--sc-text-dim);
+  overflow-wrap: anywhere;
 }
 
 .sc-title {
@@ -126,7 +81,7 @@
   font-size: 25px;
   font-weight: 700;
   letter-spacing: -0.03em;
-  line-height: 1.15;
+  line-height: 1.3;
 }
 
 /* --- Status pill --------------------------------------------- */
@@ -136,17 +91,13 @@
   align-items: center;
   gap: 7px;
   padding: 7px 12px;
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 600;
   white-space: nowrap;
   color: var(--sc-text-dim);
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--sc-edge);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
 }
 
 .sc-dot {
@@ -159,34 +110,18 @@
 
 .sc-dot--live {
   background: var(--sc-green);
-  box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.55);
-  animation: sc-ping 1.8s ease-out infinite;
 }
 
 .sc-dot--busy {
   background: var(--sc-amber);
-  box-shadow: 0 0 0 0 rgba(255, 179, 64, 0.55);
-  animation: sc-ping-amber 1.4s ease-out infinite;
-}
-
-@keyframes sc-ping {
-  to {
-    box-shadow: 0 0 0 8px rgba(48, 209, 88, 0);
-  }
-}
-
-@keyframes sc-ping-amber {
-  to {
-    box-shadow: 0 0 0 8px rgba(255, 179, 64, 0);
-  }
 }
 
 /* --- Viewfinder ---------------------------------------------- */
 
 .sc-viewfinder {
   position: relative;
-  aspect-ratio: 3 / 4;
-  border-radius: 24px;
+  aspect-ratio: 1;
+  border-radius: var(--r-md);
   overflow: hidden;
   background: #000;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -461,7 +396,7 @@
   align-items: flex-start;
   gap: 14px;
   padding: 18px;
-  border-radius: 22px;
+  border-radius: var(--r-md);
   background: var(--sc-glass-strong);
   border: 1px solid var(--sc-edge);
   -webkit-backdrop-filter: var(--sc-blur);
@@ -522,7 +457,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 18px;
-  border-radius: 24px;
+  border-radius: var(--r-md);
   -webkit-backdrop-filter: var(--sc-blur);
   backdrop-filter: var(--sc-blur);
   border: 1px solid var(--sc-edge);
@@ -641,7 +576,7 @@
   font-weight: 650;
   letter-spacing: -0.01em;
   min-height: 52px;
-  border-radius: 18px;
+  border-radius: var(--r-sm);
   transition: transform 0.15s ease, filter 0.2s ease, opacity 0.2s ease;
 }
 
@@ -650,7 +585,7 @@
 }
 
 .sc-btn:active:not(:disabled) {
-  transform: scale(0.97);
+  filter: brightness(0.9);
 }
 
 .sc-btn:disabled {
@@ -661,11 +596,8 @@
 .sc-btn--primary {
   flex: 1;
   color: #ffffff;
-  background: linear-gradient(180deg, #3ba1ff, #0a84ff);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow:
-    0 12px 28px rgba(10, 132, 255, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  background: var(--sc-blue);
+  padding: 10px 18px;
 }
 
 .sc-btn--ghost {
@@ -681,12 +613,11 @@
 
 @media (max-width: 400px) {
   .sc-shell {
-    padding: 20px 16px 18px;
-    border-radius: 26px;
+    padding: 0;
   }
 
   .sc-viewfinder {
-    aspect-ratio: 4 / 5;
+    aspect-ratio: 1;
   }
 
   .sc-btn--ghost {
@@ -722,7 +653,7 @@
 }
 
 .sc-search-subtitle {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--sc-text-dim);
 }
 
@@ -734,10 +665,10 @@
 .sc-search-input {
   width: 100%;
   font-family: inherit;
-  font-size: 14.5px;
+  font-size: 16px;
   padding: 12px 14px;
-  border-radius: 14px;
-  background: var(--sc-glass-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-1);
   border: 1px solid var(--sc-edge);
   color: var(--sc-text);
   outline: none;
@@ -750,8 +681,8 @@
 }
 
 .sc-search-input:focus {
-  border-color: var(--sc-blue);
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.25);
+  border-color: var(--sc-blue-soft);
+  box-shadow: 0 0 0 2px var(--sc-blue);
 }
 
 .sc-search-spinner {
@@ -796,8 +727,7 @@
   height: 0;
   margin: 12px 0 4px;
   border: 0;
-  border-top: 2px solid var(--sc-blue-soft);
-  box-shadow: 0 1px 8px rgba(10, 132, 255, 0.35);
+  border-top: 1px solid var(--sc-edge);
 }
 
 .sc-event-group {
@@ -837,7 +767,8 @@
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--r-sm);
+  flex-wrap: wrap;
   background: var(--sc-glass);
   border: 1px solid var(--sc-edge);
   transition: background 0.15s ease;
@@ -859,17 +790,13 @@
   font-size: 14.5px;
   font-weight: 650;
   color: var(--sc-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .sc-registrant-sub {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--sc-text-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .sc-registrant-status {
@@ -897,10 +824,11 @@
 .sc-row-btn {
   appearance: none;
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 14px;
+  min-height: 44px;
   font-weight: 650;
   padding: 8px 14px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   border: none;
   cursor: pointer;
   transition: transform 0.1s ease, filter 0.15s ease;
@@ -909,7 +837,6 @@
 .sc-row-btn--checkin {
   background: var(--sc-blue);
   color: #ffffff;
-  box-shadow: 0 4px 14px rgba(10, 132, 255, 0.3);
 }
 
 .sc-row-btn--checkin:hover:not(:disabled) {
@@ -917,7 +844,7 @@
 }
 
 .sc-row-btn--checkin:active:not(:disabled) {
-  transform: scale(0.95);
+  filter: brightness(0.9);
 }
 
 .sc-row-btn--done {

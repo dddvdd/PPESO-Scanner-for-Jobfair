@@ -116,12 +116,11 @@ export default function AdminPage() {
   }
 
   return (
-    <section className="page">
-      <p className="page-kicker">Admin</p>
+    <section className="page admin-page">
       <h1 className="page-title">Event &amp; staff administration</h1>
 
       <div
-        className="link-row"
+        className="link-row admin-tabs"
         role="tablist"
         aria-label="Admin sections"
         onKeyDown={onTablistKeyDown}

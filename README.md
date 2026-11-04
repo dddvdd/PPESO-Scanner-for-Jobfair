@@ -1,4 +1,32 @@
-# Job Fair Registration & QR Check-In System (MVP)
+# PPESO Job Fairs & Recruitment Events
+
+## Repository layout
+
+```text
+src/
+  assets/        PESO seal and no-events animation
+  components/    Shared controls and forms
+  context/       Authentication state
+  lib/           API clients and utilities
+  pages/         Public, staff and admin screens
+  styles/        Shared interface styles
+supabase/        Database migrations and Edge Functions
+scripts/         Maintenance, asset generation and validation
+  verify/        Local verification and database checks
+docs/            Setup, scope and design notes
+  archive/       Historical screenshots
+```
+
+Start with [setup notes](docs/setup.md), [municipal scanner setup](docs/municipal-scanner-setup.md),
+[project scope](docs/mvp_scope.md), or the [design direction](docs/brand-spec.md).
+The [gate ledger](docs/GATES.md) records earlier checks.
+Generated builds, local screenshots, credentials and
+agent tooling are excluded from version control.
+
+Run commands from the repository root. `npm test`
+checks the interface using local fixtures. `node scripts/audit.mjs` is a manual
+database audit and requires explicitly configured credentials and authorized
+network access; it is not part of local UI checks.
 
 > PESO Cagayan — Job Fair management tool
 
@@ -19,13 +47,13 @@
 | What you need | Where to get it | Time |
 |---|---|---|
 | **Git** installed | [git-scm.com](https://git-scm.com) | 2 min |
-| **Node.js** (v18+) | [nodejs.org](https://nodejs.org) | 3 min |
+| **Node.js** (20.19+ or 22.12+) | [nodejs.org](https://nodejs.org) | 3 min |
 | **A Supabase account** | [supabase.com](https://supabase.com) → free tier | 3 min |
 
 Check each one ✓ when you have it:
 
 - [ ] I can run `git --version` in a terminal
-- [ ] I can run `node --version` and it shows v18 or higher
+- [ ] I can run `node --version` and it meets the version requirement above
 - [ ] I can log in to [supabase.com](https://supabase.com)
 
 ---
@@ -37,8 +65,8 @@ Check each one ✓ when you have it:
 Open a terminal (PowerShell on Windows, Terminal on Mac) and run:
 
 ```bash
-git clone https://github.com/YOUR_ORG/jobfair-registration-mvp.git
-cd jobfair-registration-mvp
+git clone https://github.com/dddvdd/PPESO-Scanner-for-Jobfair.git
+cd PPESO-Scanner-for-Jobfair
 ```
 
 **✅ Done when:** You can see files when you run `ls` (or `dir` on Windows).

@@ -14,6 +14,8 @@ playwright.config.js
 supabase/.temp/
 
 # Development/backup
+.agents/
+.kilo/
 .jobseeker-update/
 debug.log
-screenshots/
+/screenshots/

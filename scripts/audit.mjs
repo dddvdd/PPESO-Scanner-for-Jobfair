@@ -10,10 +10,10 @@ envFile.split('\n').forEach(line => {
 
 const supabaseUrl = env.VITE_SUPABASE_URL;
 const supabaseKey = env.VITE_SUPABASE_ANON_KEY;
-const email = 'admin@verify.me';
-const password = 'pass@123';
+const email = process.env.E2E_ADMIN_EMAIL || env.E2E_ADMIN_EMAIL || process.env.E2E_STAFF_EMAIL || env.E2E_STAFF_EMAIL;
+const password = process.env.E2E_ADMIN_PASSWORD || env.E2E_ADMIN_PASSWORD || process.env.E2E_STAFF_PASSWORD || env.E2E_STAFF_PASSWORD;
 
-if (!supabaseUrl || !supabaseKey) {
+if (!supabaseUrl || !supabaseKey || !email || !password) {
   console.error("Missing URL/Key");
   process.exit(1);
 }

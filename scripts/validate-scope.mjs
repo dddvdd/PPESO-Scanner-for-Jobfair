@@ -24,9 +24,9 @@ const required = [
   ["Definition of done", /definition of done/i],
 ];
 
-const path = join(process.cwd(), "mvp_scope.md");
+const path = join(process.cwd(), "docs", "mvp_scope.md");
 if (!existsSync(path)) {
-  console.error("mvp_scope.md not found in current working directory");
+  console.error("docs/mvp_scope.md not found; run this command from the project root");
   process.exit(1);
 }
 

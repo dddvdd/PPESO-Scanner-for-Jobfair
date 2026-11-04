@@ -26,6 +26,11 @@ const IDENTITY_PLACEHOLDER = {
   mobileNumber: "0917 123 4567",
 };
 
+const IDENTITY_AUTOCOMPLETE = {
+  firstName: "given-name", middleName: "additional-name", lastName: "family-name",
+  email: "email", mobileNumber: "tel", suffix: "honorific-suffix",
+};
+
 // Sample text for dynamic short_text fields; matched by field_key with the
 // lowercased label as fallback.
 const FIELD_PLACEHOLDER = {
@@ -48,7 +53,7 @@ export function IdentityField({ name, value, error, disabled, onChange, hideRequ
   const inputMode = name === "mobileNumber" ? "tel" : undefined;
   const required = ["firstName", "lastName", "email", "mobileNumber"].includes(name);
   return (
-    <div>
+    <div className="field">
       <label htmlFor={`identity-${name}`}>
         {IDENTITY[name]}
         {required && !hideRequired ? " *" : ""}
@@ -57,15 +62,17 @@ export function IdentityField({ name, value, error, disabled, onChange, hideRequ
         id={`identity-${name}`}
         type={type}
         inputMode={inputMode}
+        autoComplete={IDENTITY_AUTOCOMPLETE[name]}
         placeholder={IDENTITY_PLACEHOLDER[name]}
         value={value}
         required={required}
         disabled={disabled}
         aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `identity-${name}-error` : undefined}
         onChange={(e) => onChange(name, e.target.value)}
       />
       {error && (
-        <p role="alert" className="field-error">
+        <p id={`identity-${name}-error`} role="alert" className="field-error">
           {error}
         </p>
       )}
@@ -250,7 +257,7 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
   }
 
   return (
-    <div>
+    <div className="field">
       <label id={`${id}-label`} htmlFor={field.field_type === "short_text" || field.field_type === "long_text" || field.field_type === "number" || field.field_type === "date" || field.field_type === "dropdown" ? id : undefined}>
         {field.label}{field.field_key === "pwd" ? "?" : ""}
         {field.required && !hideRequired ? " *" : ""}

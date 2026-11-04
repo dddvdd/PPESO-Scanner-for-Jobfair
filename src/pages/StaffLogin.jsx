@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { signInWithPassword } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import PasswordInput from "../components/PasswordInput.jsx";
@@ -54,11 +54,10 @@ export default function StaffLogin() {
 
   return (
     <section className="page">
-      <div className="glass-card hero-card" style={{ maxWidth: 400 }}>
-        <p className="page-kicker">Staff access</p>
-        <h1 className="page-title">Staff check-in</h1>
+      <div className="glass-card hero-card login-panel">
+        <h1 className="page-title">Staff sign in</h1>
         <p className="page-lead">
-          Sign in with your staff account to open the ticket scanner.
+          Use your assigned account to access event and check-in tools.
         </p>
 
         {error && (
@@ -69,13 +68,16 @@ export default function StaffLogin() {
           </p>
         )}
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit}>
           <div className="form-stack">
             <div className="field">
               <label htmlFor="staff-email">Email</label>
               <input
                 id="staff-email"
                 type="email"
+                required
+                autoCapitalize="none"
+                spellCheck={false}
                 autoComplete="username"
                 value={email}
                 disabled={submitting}
@@ -86,6 +88,7 @@ export default function StaffLogin() {
               <label htmlFor="staff-password">Password</label>
               <PasswordInput
                 id="staff-password"
+                required
                 autoComplete="current-password"
                 value={password}
                 disabled={submitting}
@@ -98,12 +101,15 @@ export default function StaffLogin() {
           </div>
         </form>
 
+        <p className="field-hint">Need an account or help signing in? Contact your PPESO administrator.</p>
+
         {session && roleLoading && (
           <p role="status" className="status-line">
             Checking authorization…
           </p>
         )}
       </div>
+      <p className="page-lead">Looking for a job? <Link className="link" to="/events">Register for an event</Link>. No account needed.</p>
     </section>
   );
 }
