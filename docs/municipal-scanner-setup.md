@@ -1,7 +1,6 @@
 # Municipal scanner setup
 
-This change prepares 29 scanner accounts. The account list is in
-[municipal-scanner-accounts.csv](municipal-scanner-accounts.csv).
+This change prepares 29 scanner accounts. Distribute account details privately.
 It does not create live users until the migration and provisioning step run.
 
 1. Apply `supabase/migrations/20261104090000_municipal_scanner_accounts.sql`
@@ -30,17 +29,6 @@ replacement happen atomically on the server.
 
 - `npm run build`
 - `npm run validate:migrations`
-- `node scripts/verify/municipal-scanner-ui.mjs` starts a temporary loopback
-  Vite server and mocks all Auth/Data API responses. It checks redirects,
-  persisted first-login enforcement, password change, scanner access, setup,
-  and municipality selection. It does not test a live Supabase Auth service.
-- `node scripts/verify/municipal-scanners.test.mjs` expects an isolated local
-  PostgreSQL instance at `127.0.0.1:55439` with a local `postgres` user. It creates
-  a uniquely named test database with minimal Auth tables, applies all
-  migrations, and checks actual policies and RPCs for every municipality.
-  It never reads `.env` or contacts external services.
+- `npm run validate:config`
 
-The repository's `validate:config` currently also scans the pre-existing,
-untracked `.agents` skill folder and reports embedded demo configuration there.
-The dependency audit requires an outbound network request and is not run under
-the repository's local-only rule.
+Test suites and account lists are kept locally and excluded from the published repository.

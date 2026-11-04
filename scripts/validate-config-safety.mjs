@@ -1,20 +1,10 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
+import { execFileSync } from "node:child_process";
 
-const SKIP_DIRS = new Set(["node_modules", "dist", ".git"]);
-const files = [];
-
-function walk(dir) {
-  for (const entry of readdirSync(dir)) {
-    if (SKIP_DIRS.has(entry)) continue;
-    const full = join(dir, entry);
-    const st = statSync(full);
-    if (st.isDirectory()) walk(full);
-    else files.push(full);
-  }
-}
-
-walk(process.cwd());
+// Inspect publishable paths, not ignored local credentials, tools or backups.
+const files = execFileSync("git", ["ls-files", "--cached", "-z"], { encoding: "utf8" })
+  .split("\0").filter(Boolean).map(file => join(process.cwd(), file));
 
 const problems = [];
 const warnings = [];
@@ -31,6 +21,14 @@ const clientCode = (f) => {
 
 for (const file of files) {
   const rel = relative(process.cwd(), file);
+  const normalized = rel.replaceAll("\\", "/");
+  if (/(^|\/)(tests?|__tests__|e2e|screenshots|test-results|playwright-report|coverage)(\/|$)|\.(test|spec)\.|\.snap$|-tests\.mjs$|^scripts\/verify\//i.test(normalized)) {
+    problems.push(`Local test artifact is tracked: ${rel}`);
+  }
+  if ((/(^|\/)\.env(?:\.|$)/.test(normalized) && normalized !== ".env.example") || /\.(pem|key|p12|pfx)$/i.test(normalized)) {
+    problems.push(`Private configuration file is tracked: ${rel}`);
+  }
+  if (/\.(png|gif|jpg|jpeg|webp|ico)$/i.test(normalized)) continue;
   let text;
   try {
     text = readFileSync(file, "utf8");
@@ -52,8 +50,16 @@ for (const file of files) {
   }
 
   // Private key blocks
-  if (/-----BEGIN (RSA |EC )?PRIVATE KEY-----/.test(text)) {
+  if (/-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/.test(text)) {
     problems.push(`Private key found in ${rel}`);
+  }
+
+  if (/\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|sb_secret_[A-Za-z0-9_-]{20,})\b/.test(text)) {
+    problems.push(`Private access token found in ${rel}`);
+  }
+
+  if (/\b(?:const|let|var)\s+\w*password\w*\s*=\s*["'][^"']+["']/i.test(text)) {
+    problems.push(`Hard-coded password assignment found in ${rel}`);
   }
 
   if (!isLocalEnv && /[a-z0-9]{20}\.supabase\.co/.test(text)) {

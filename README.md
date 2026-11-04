@@ -12,21 +12,17 @@ src/
   styles/        Shared interface styles
 supabase/        Database migrations and Edge Functions
 scripts/         Maintenance, asset generation and validation
-  verify/        Local verification and database checks
 docs/            Setup, scope and design notes
-  archive/       Historical screenshots
 ```
 
 Start with [setup notes](docs/setup.md), [municipal scanner setup](docs/municipal-scanner-setup.md),
 [project scope](docs/mvp_scope.md), or the [design direction](docs/brand-spec.md).
-The [gate ledger](docs/GATES.md) records earlier checks.
-Generated builds, local screenshots, credentials and
-agent tooling are excluded from version control.
+Test suites, verification fixtures, audit scripts, screenshots, account lists,
+generated builds, credentials and agent tooling are excluded from version control.
 
-Run commands from the repository root. `npm test`
-checks the interface using local fixtures. `node scripts/audit.mjs` is a manual
-database audit and requires explicitly configured credentials and authorized
-network access; it is not part of local UI checks.
+Run commands from the repository root. `npm run build` builds the frontend;
+`npm run validate:config` checks tracked files for accidentally included
+credentials or local artifacts without printing sensitive values.
 
 > PESO Cagayan — Job Fair management tool
 
@@ -163,15 +159,8 @@ Files to run in this order:
 8. `20260826140000_staff_lookup_ticket_token.sql`
 9. `20260826150000_check_in_event_date_guard.sql`
 
-**Option B — Command line (if you have DB access):**
-```bash
-# Set this in your terminal BEFORE running npm:
-# Windows PowerShell:
-$env:SUPABASE_DB_URL = "postgresql://postgres:YOUR_PASSWORD@db.xxxxxx.supabase.co:5432/postgres"
-
-# Then:
-npm run verify:migrate
-```
+Keep database connection strings in private environment configuration.
+Local database maintenance tools are not included in the published repository.
 
 **✅ Done when:** You can see tables (`registrations`, `events`, `check_ins`, etc.) in Supabase Dashboard → **Table Editor**.
 

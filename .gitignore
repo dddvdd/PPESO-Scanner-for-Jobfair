@@ -3,6 +3,8 @@ dist/
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
 *.local
 .DS_Store
 
@@ -18,4 +20,28 @@ supabase/.temp/
 .kilo/
 .jobseeker-update/
 debug.log
-/screenshots/
+screenshots/
+
+# Local verification and internal artifacts must never be published.
+tests/
+test/
+__tests__/
+e2e/
+coverage/
+playwright-report/
+blob-report/
+*.test.*
+*.spec.*
+*.snap
+*-tests.mjs
+scripts/verify/
+scripts/audit.mjs
+docs/GATES.md
+docs/archive/
+docs/municipal-scanner-accounts.csv
+
+# Private credential files
+*.pem
+*.key
+*.p12
+*.pfx
