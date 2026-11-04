@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { getSupabase } from "../lib/supabaseClient.js";
-import { myRole } from "../lib/api.js";
+import { myRole, staffAccountStatus } from "../lib/api.js";
 
 const AuthContext = createContext(null);
 
@@ -27,6 +27,8 @@ export function AuthProvider({ children }) {
   const [initializing, setInitializing] = useState(true);
   const [role, setRole] = useState(null);
   const [roleLoading, setRoleLoading] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(true);
+  const [municipality, setMunicipality] = useState(null);
   const roleRequestIdRef = useRef(0);
   const userIdRef = useRef(null);
 
@@ -34,9 +36,12 @@ export function AuthProvider({ children }) {
     const requestId = ++roleRequestIdRef.current;
     setRoleLoading(true);
     try {
-      const result = await myRole();
+      const [result, account] = await Promise.all([myRole(), staffAccountStatus()]);
       if (requestId !== roleRequestIdRef.current) return;
       setRole(result.ok ? (result.data ?? null) : null);
+      // Missing account state fails closed, including on page refresh.
+      setMustChangePassword(!account.ok || account.data?.must_change_password !== false);
+      setMunicipality(account.ok ? account.data?.municipality ?? null : null);
     } finally {
       if (requestId === roleRequestIdRef.current) setRoleLoading(false);
     }
@@ -58,8 +63,13 @@ export function AuthProvider({ children }) {
         if (signedOut) {
           roleRequestIdRef.current += 1;
           setRole(null);
+          setMustChangePassword(true);
+          setMunicipality(null);
           setRoleLoading(false);
         } else {
+          setRole(null);
+          setMustChangePassword(true);
+          setMunicipality(null);
           refreshRole();
         }
       }
@@ -91,12 +101,14 @@ export function AuthProvider({ children }) {
       initializing,
       role,
       roleLoading,
+      mustChangePassword,
+      municipality,
       isAdmin: role === "admin",
       isStaff: role === "staff" || role === "admin",
       refreshRole,
       signOut,
     }),
-    [session, initializing, role, roleLoading, refreshRole, signOut]
+    [session, initializing, role, roleLoading, mustChangePassword, municipality, refreshRole, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

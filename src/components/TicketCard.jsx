@@ -13,9 +13,7 @@ const REGISTRATION_STATUS_LABELS = {
 };
 
 /**
- * Shared ticket presentation for both flows:
- *   registration hand-off (token via router state)
- *   retrieval (full row from retrieve_ticket RPC)
+ * Ticket presentation after registration (token via router state).
  *
  * The ticket token appears ONLY inside the QR image — it is never rendered
  * as text.

@@ -136,39 +136,6 @@ export async function registerApplicant(input) {
   });
 }
 
-/**
- * Retrieve a ticket with registration number + verification email.
- * The backend deliberately returns the same TICKET_NOT_FOUND signal whether
- * the number is unknown or the email does not match; this wrapper preserves
- * that indistinguishability and maps both to the single generic token.
- */
-export async function retrieveTicket(registrationNumber, verificationEmail) {
-  const result = await toResult(() =>
-    getSupabase().rpc("retrieve_ticket", {
-      p_registration_number: text(registrationNumber),
-      p_verification_email: text(verificationEmail),
-    })
-  );
-  if (!result.ok) return result;
-
-  const d = result.data ?? {};
-  return ok({
-    registrationNumber: d.registration_number ?? null,
-    ticketToken: d.ticket_token ?? null,
-    firstName: d.first_name ?? null,
-    middleName: d.middle_name ?? null,
-    lastName: d.last_name ?? null,
-    suffix: d.suffix ?? null,
-    email: d.email ?? null,
-    eventName: d.event_name ?? null,
-    eventDate: d.event_date ?? null,
-    location: d.location ?? null,
-    registrationStatus: d.registration_status ?? null,
-    registeredAt: d.registered_at ?? null,
-    checkedInAt: d.checked_in_at ?? null,
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Staff (database-authorized via perform_check_in / staff_lookup guards)
 // ---------------------------------------------------------------------------
@@ -322,6 +289,22 @@ export async function updatePassword(newPassword) {
   } catch (thrown) {
     return fail(thrown);
   }
+}
+
+export function staffAccountStatus() {
+  return toResult(() => getSupabase().rpc("staff_account_status"));
+}
+
+export function changeInitialPassword(currentPassword, newPassword) {
+  return toResult(() => getSupabase().rpc("staff_change_initial_password", {
+    p_current_password: currentPassword, p_new_password: newPassword,
+  }));
+}
+
+export function adminCreateMunicipalScanners(initialPassword) {
+  return toResult(() => getSupabase().rpc("admin_create_municipal_scanners", {
+    p_initial_password: initialPassword,
+  }));
 }
 
 /**
@@ -499,8 +482,8 @@ export function adminDeleteField(fieldId) {
 
 /**
  * Registration records for management views. Anonymous/staff sessions see
- * zero rows here by RLS design — public flows must use registerApplicant /
- * retrieveTicket instead. Returns raw database rows (snake_case columns);
+ * zero rows here by RLS design — public submission uses registerApplicant.
+ * Returns raw database rows (snake_case columns);
  * mapping to view models belongs to the admin UI phase.
  */
 export function adminListRegistrations({ eventId, limit = 200 } = {}) {

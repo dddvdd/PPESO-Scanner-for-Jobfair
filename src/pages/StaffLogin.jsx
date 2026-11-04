@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { signInWithPassword } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import PasswordInput from "../components/PasswordInput.jsx";
 
 /**
  * Staff/admin sign-in. Applicants never authenticate.
@@ -12,7 +13,7 @@ import { useAuth } from "../context/AuthContext.jsx";
  * straight to the scanner.
  */
 export default function StaffLogin() {
-  const { session, role, roleLoading, initializing } = useAuth();
+  const { session, role, roleLoading, initializing, mustChangePassword } = useAuth();
   const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,6 +22,7 @@ export default function StaffLogin() {
 
   if (!initializing && session && !roleLoading) {
     if (role === "staff" || role === "admin") {
+      if (mustChangePassword) return <Navigate to="/staff/account" replace />;
       return <Navigate to={location.state?.from ?? (role === "admin" ? "/admin" : "/staff/scanner")} replace />;
     }
     // Signed in but not operational staff — same boundary as the scanner.
@@ -82,9 +84,8 @@ export default function StaffLogin() {
             </div>
             <div className="field">
               <label htmlFor="staff-password">Password</label>
-              <input
+              <PasswordInput
                 id="staff-password"
-                type="password"
                 autoComplete="current-password"
                 value={password}
                 disabled={submitting}

@@ -60,7 +60,7 @@ const TOKEN_MESSAGES = Object.freeze({
   [ERROR_TOKENS.INVALID_EMAIL]: "Please enter a valid email address.",
   [ERROR_TOKENS.INVALID_MOBILE]: "Please enter a valid mobile number.",
   [ERROR_TOKENS.DUPLICATE_REGISTRATION]:
-    "This registration already exists. You can retrieve your ticket instead.",
+    "This registration already exists. Use your saved QR ticket or ask event staff to find your registration at check-in.",
   [ERROR_TOKENS.REGISTRATION_FAILED]:
     "We could not complete your registration. Please try again.",
   [ERROR_TOKENS.TICKET_NOT_FOUND]:

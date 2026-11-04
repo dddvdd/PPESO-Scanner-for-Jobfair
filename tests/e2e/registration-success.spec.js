@@ -8,8 +8,7 @@ import { attachObservability, assertNoHorizontalOverflow } from "./_helpers.js";
  *   verify the success page in two ways:
  *
  *   1. Visit /registration/success with no router state — the page must
- *      guide the user to /retrieve-ticket rather than crash. This is the
- *      documented recovery path.
+ *      guide the user to their saved QR or event staff rather than crash.
  *
  *   2. Render the page in the same in-memory state that the production
  *      code receives after a real submission, by pre-seeding
@@ -53,15 +52,11 @@ test("Phase 3C — registration success page renders ticket info and QR (desktop
   await expect(page.getByText(/E2E-MOCK-0001/)).toBeVisible();
   await expect(page.getByText(/Mock Job Fair/)).toBeVisible();
 
-  // A QR <svg> is rendered (qrcode library renders inline SVG, not canvas).
-  const qrRegion = page.locator(".ticket-qr-zone [role='img']");
-  await expect(qrRegion).toBeVisible({ timeout: 10_000 });
-  // Sanity check: the QR has rendered to a real <svg> element.
-  const svgCount = await qrRegion.locator("svg").count();
-  expect(svgCount).toBeGreaterThan(0);
+  const qrImage = page.getByRole("img", { name: "Ticket QR code", exact: true });
+  await expect(qrImage).toBeVisible({ timeout: 10_000 });
+  await expect(qrImage).toHaveAttribute("src", /^data:image\/png;base64,/);
 
-  // The page links to retrieval.
-  await expect(page.getByRole("link", { name: /ticket retrieval/i })).toBeVisible();
+  await expect(page.getByText(/take a screenshot of your qr ticket/i)).toBeVisible();
 
   expect(obs.pageErrors).toEqual([]);
   await page.screenshot({ path: `${SCREENSHOTS}/registration-success-desktop.png`, fullPage: true });
@@ -78,8 +73,9 @@ test("Phase 3C — registration success page renders without horizontal overflow
 
 test("Phase 3C — direct entry to success without state shows the recovery path", async ({ page }) => {
   // Hitting /registration/success with no state should NOT crash; it should
-  // guide the user to /retrieve-ticket.
+  // direct the user to their saved ticket or event staff.
   await page.goto("/registration/success");
   await expect(page.getByText(/no recent confirmation/i)).toBeVisible();
-  await expect(page.getByRole("link", { name: /retrieve your ticket/i })).toBeVisible();
+  await expect(page.getByText(/ask event staff to find your registration/i)).toBeVisible();
+  await expect(page.getByRole("link", { name: /view published events/i })).toBeVisible();
 });

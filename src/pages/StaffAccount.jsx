@@ -1,12 +1,13 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { signInWithPassword, updatePassword } from "../lib/api.js";
+import { changeInitialPassword, signInWithPassword, updatePassword } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import PasswordInput from "../components/PasswordInput.jsx";
 
 const MIN_LENGTH = 8;
 
 export default function StaffAccount() {
-  const { user, role } = useAuth();
+  const { user, role, mustChangePassword, municipality, refreshRole } = useAuth();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -23,6 +24,7 @@ export default function StaffAccount() {
     const errors = {};
     if (!current) errors.current = "Enter your current password.";
     if (next.length < MIN_LENGTH) errors.next = `New password must be at least ${MIN_LENGTH} characters.`;
+    if (next === current) errors.next = "Choose a password different from your current password.";
     if (confirm !== next) errors.confirm = "Passwords do not match.";
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
@@ -31,6 +33,24 @@ export default function StaffAccount() {
     setSaving(true);
     setBanner(null);
     setSuccess(false);
+
+    if (mustChangePassword) {
+      const result = await changeInitialPassword(current, next);
+      if (result.ok && result.data?.status === "ok") {
+        await refreshRole();
+        setSuccess(true);
+        setCurrent(""); setNext(""); setConfirm("");
+      } else {
+        setBanner(result.ok
+          ? { kind: "application", message: result.data?.status === "invalid_password"
+            ? "Current password is incorrect."
+            : "Could not change password. Use a different password of at least 8 characters, or retry the account check." }
+          : result.error);
+      }
+      savingRef.current = false;
+      setSaving(false);
+      return;
+    }
 
     // Re-verify the current password before allowing a change, so an
     // unattended open session can't be hijacked by a passer-by.
@@ -65,7 +85,11 @@ export default function StaffAccount() {
     <section className="page">
       <p className="page-kicker">Account</p>
       <h1 className="page-title">Change password</h1>
-      <Link className="btn btn--primary btn--small" to="/staff/interviews">Interview Status</Link>
+      {mustChangePassword && <p role="status" className="alert alert--warn">
+        Change your temporary password before accessing events or scanning tickets.
+      </p>}
+      {municipality && <p className="page-lead">Assigned municipality: {municipality}</p>}
+      {!mustChangePassword && <Link className="btn btn--primary btn--small" to="/staff/interviews">Interview Status</Link>}
       <p className="page-lead">
         Signed in as <strong>{user?.email ?? "unknown"}</strong> ({role ?? "no role"}).
       </p>
@@ -91,9 +115,8 @@ export default function StaffAccount() {
           <div className="form-stack">
             <div className="field">
               <label htmlFor="account-current">Current password</label>
-              <input
+              <PasswordInput
                 id="account-current"
-                type="password"
                 autoComplete="current-password"
                 value={current}
                 disabled={saving}
@@ -106,9 +129,8 @@ export default function StaffAccount() {
             </div>
             <div className="field">
               <label htmlFor="account-new">New password</label>
-              <input
+              <PasswordInput
                 id="account-new"
-                type="password"
                 autoComplete="new-password"
                 value={next}
                 disabled={saving}
@@ -121,9 +143,8 @@ export default function StaffAccount() {
             </div>
             <div className="field">
               <label htmlFor="account-confirm">Confirm new password</label>
-              <input
+              <PasswordInput
                 id="account-confirm"
-                type="password"
                 autoComplete="new-password"
                 value={confirm}
                 disabled={saving}
@@ -141,7 +162,7 @@ export default function StaffAccount() {
         </fieldset>
       </form>
 
-      <p className="page-lead">
+      {!mustChangePassword && <p className="page-lead">
         {role === "admin" && (
           <>
             <Link to="/admin">Admin console</Link>
@@ -151,7 +172,7 @@ export default function StaffAccount() {
         <Link to="/staff/scanner">Back to scanner</Link>
         {" · "}
         <Link to="/">Home</Link>
-      </p>
+      </p>}
     </section>
   );
 }

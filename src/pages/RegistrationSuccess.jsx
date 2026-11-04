@@ -6,9 +6,7 @@ import TicketCard from "../components/TicketCard.jsx";
  *
  * Data arrives via router location state only (in-memory, per history
  * entry): no URL params, no storage, no logging. If state is lost (direct
- * entry or refresh), we deliberately show a recovery path instead of
- * persisting the bearer token — Phase 2D contract. The retrieval page is the
- * durable recovery mechanism.
+ * entry or refresh), direct applicants to their saved ticket or event staff.
  */
 export default function RegistrationSuccess() {
   const location = useLocation();
@@ -21,13 +19,10 @@ export default function RegistrationSuccess() {
           <h1 className="page-title">Registration</h1>
           <p className="page-lead">No recent confirmation found for this session.</p>
           <p className="page-lead">
-            If you have already registered, you can recover your ticket using
-            just the email address you registered with.
+            If you have already registered, use your saved QR ticket or ask
+            event staff to find your registration at check-in.
           </p>
           <div className="link-row">
-            <Link className="btn btn--primary btn--small" to="/retrieve-ticket">
-              Retrieve your ticket
-            </Link>
             <Link className="link" to="/events">
               View published events
             </Link>
@@ -58,10 +53,9 @@ export default function RegistrationSuccess() {
       />
 
       <p className="page-lead">
-        Keep your registration number safe. Lost your QR? You can always
-        recover this ticket via{" "}
-        <Link className="link" to="/retrieve-ticket">ticket retrieval</Link>{" "}
-        using your email alone.
+        Take a screenshot of your QR ticket and keep your registration number
+        before leaving this page. If you lose your ticket, ask event staff to
+        find your registration at check-in.
       </p>
     </section>
   );

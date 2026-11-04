@@ -34,8 +34,8 @@ function UnauthorizedPanel({ adminOnly }) {
  *   <StaffRoute>            staff or admin  (scanner)
  *   <StaffRoute adminOnly>  admin only      (admin console)
  */
-export default function StaffRoute({ children, adminOnly = false }) {
-  const { session, initializing, role, roleLoading, refreshRole } = useAuth();
+export default function StaffRoute({ children, adminOnly = false, allowPasswordChange = false }) {
+  const { session, initializing, role, roleLoading, mustChangePassword, refreshRole } = useAuth();
   const location = useLocation();
 
   if (initializing || (session && role === null && roleLoading)) {
@@ -76,5 +76,8 @@ export default function StaffRoute({ children, adminOnly = false }) {
     );
   }
 
+  if (mustChangePassword && !allowPasswordChange) {
+    return <Navigate to="/staff/account" replace />;
+  }
   return children;
 }

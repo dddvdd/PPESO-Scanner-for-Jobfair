@@ -8,6 +8,7 @@ import {
   adminEventInterviewSummary,
   adminCreateForm,
   adminCreateUser,
+  adminCreateMunicipalScanners,
   adminDeleteEvent,
   adminDeleteUser,
   adminSetPassword,
@@ -27,8 +28,10 @@ import {
 } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import UndoToast from "../components/UndoToast.jsx";
+import PasswordInput from "../components/PasswordInput.jsx";
 import { preRegistrantsCsv, downloadPreRegistrantsCsv } from "../lib/preRegistrantsExport.js";
 import { checkinsCsv, downloadCheckinsCsv } from "../lib/checkinsExport.js";
+import { MUNICIPALITIES } from "../lib/municipalities.js";
 
 const ROLE_LABELS = { admin: "Admin", staff: "Staff", supervisor: "Supervisor", pending: "Pending" };
 
@@ -38,7 +41,7 @@ const TABS = [
   { id: "staff", label: "Staff roles" },
 ];
 
-const BLANK_DRAFT = { name: "", description: "", event_date: "", location: "" };
+const BLANK_DRAFT = { name: "", description: "", event_date: "", location: "", municipality: "" };
 
 /**
  * Brief confirmation message that clears itself (success-feedback).
@@ -275,6 +278,7 @@ function EventsPanel({ pushUndo }) {
       description: ev.description ?? "",
       event_date: ev.event_date ?? "",
       location: ev.location ?? "",
+      municipality: ev.municipality ?? "",
     });
     setDraftError(null);
     setShowForm(true);
@@ -301,6 +305,7 @@ function EventsPanel({ pushUndo }) {
       description: draft.description.trim() || null,
       event_date: draft.event_date || null,
       location: draft.location.trim() || null,
+      municipality: draft.municipality || null,
     };
 
     if (editing) {
@@ -473,6 +478,15 @@ function EventsPanel({ pushUndo }) {
               />
             </div>
             <div className="field">
+              <label htmlFor="ev-municipality">Municipality / City</label>
+              <select id="ev-municipality" value={draft.municipality} disabled={saving}
+                onChange={(e) => setDraft((d) => ({ ...d, municipality: e.target.value }))}>
+                <option value="">Unassigned — administrators and general staff only</option>
+                {MUNICIPALITIES.map(({ name }) => <option key={name} value={name}>{name}</option>)}
+              </select>
+              <p className="field-hint">Only the scanner assigned to this municipality can access this event.</p>
+            </div>
+            <div className="field">
               <label htmlFor="ev-location">Location</label>
               <input
                 id="ev-location"
@@ -538,6 +552,7 @@ function EventsPanel({ pushUndo }) {
                 {ev.event_date ?? "No date"}
                 {ev.location ? ` · ${ev.location}` : ""}
               </p>
+              <p className="event-meta">Municipality: {ev.municipality ?? "Unassigned"}</p>
               <span
                 className={`chip ${ev.status === "published" ? "" : "chip--muted"}`}
                 aria-label={`Status: ${ev.status}`}
@@ -1012,6 +1027,27 @@ function StaffPanel({ pushUndo }) {
   const [passwordValue, setPasswordValue] = useState("");
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [passwordError, setPasswordError] = useState(null);
+  const [initialPassword, setInitialPassword] = useState("");
+  const [provisioning, setProvisioning] = useState(false);
+  const [scannerResults, setScannerResults] = useState(null);
+
+  async function createMunicipalScanners(event) {
+    event.preventDefault();
+    if (provisioning) return;
+    setProvisioning(true);
+    setError(null);
+    setScannerResults(null);
+    const result = await adminCreateMunicipalScanners(initialPassword);
+    setProvisioning(false);
+    if (!result.ok || result.data?.status !== "ok") {
+      setError(!result.ok ? result.error.message : "Could not create municipal scanners. Enter a temporary password of at least 6 characters.");
+      return;
+    }
+    setInitialPassword("");
+    setScannerResults(result.data.accounts);
+    flash("Municipal scanner setup completed. Existing accounts were left unchanged.");
+    reload();
+  }
 
   async function reload() {
     const result = await adminListProfiles();
@@ -1169,6 +1205,26 @@ function StaffPanel({ pushUndo }) {
       <Notice text={notice} />
 
       <div className="glass-card event-card">
+        <h2>Municipal scanner accounts</h2>
+        <p className="event-desc">Create 29 scanner logins covering the listed municipalities and Tuguegarao City.
+          Each account sees only events assigned to its municipality and must change its temporary password on first login.
+          Existing email addresses are skipped.</p>
+        <form className="form-stack" onSubmit={createMunicipalScanners}>
+          <div className="field">
+            <label htmlFor="scanner-initial-password">Temporary password for new scanners</label>
+            <PasswordInput id="scanner-initial-password" autoComplete="new-password" value={initialPassword} minLength={6} required disabled={provisioning}
+              onChange={(e) => setInitialPassword(e.target.value)} />
+          </div>
+          <button className="btn btn--primary" type="submit" disabled={provisioning}>
+            {provisioning ? "Creating scanners…" : "Create 29 municipal scanners"}
+          </button>
+        </form>
+        {scannerResults && <ul>{scannerResults.map((account) => <li key={account.email}>
+          {account.municipality}: {account.email} — {account.status}
+        </li>)}</ul>}
+      </div>
+
+      <div className="glass-card event-card">
         <h2>Create account</h2>
         <p className="event-desc">
           Add a staff or admin login. The password is hashed securely and the
@@ -1189,17 +1245,18 @@ function StaffPanel({ pushUndo }) {
               required
             />
           </label>
-          <label className="field">
-            <span>Password (min 8 characters)</span>
-            <input
-              type="text"
+          <div className="field">
+            <label htmlFor="admin-new-account-password">Password (min 8 characters)</label>
+            <PasswordInput
+              id="admin-new-account-password"
+              autoComplete="new-password"
               className="field"
               value={newPassword}
               placeholder="••••••••"
               onChange={(e) => setNewPassword(e.target.value)}
               required
             />
-          </label>
+          </div>
           <label className="field">
             <span>Role</span>
             <select
@@ -1257,6 +1314,8 @@ function StaffPanel({ pushUndo }) {
                 Role: {ROLE_LABELS[p.role] ?? p.role}
               </p>
               <p className="event-meta">{p.email}</p>
+              {p.municipality && <p className="event-meta">Municipality: {p.municipality}
+                {p.must_change_password ? " · Password change required" : ""}</p>}
 
               {!isSelf && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
@@ -1346,15 +1405,17 @@ function StaffPanel({ pushUndo }) {
                   {passwordError && (
                     <p role="alert" className="alert alert--error">{passwordError}</p>
                   )}
-                  <label className="field">
-                    <span>New password (min 8 characters)</span>
-                    <input
-                      type="text"
+                  <div className="field">
+                    <label htmlFor={`admin-reset-password-${p.id}`}>New password (min 8 characters)</label>
+                    <PasswordInput
+                      id={`admin-reset-password-${p.id}`}
+                      autoComplete="new-password"
                       className="field"
+                      disabled={passwordBusy}
                       value={passwordValue}
                       onChange={(e) => setPasswordValue(e.target.value)}
                     />
-                  </label>
+                  </div>
                   <div style={{ display: "flex", gap: 10 }}>
                     <button
                       type="button"

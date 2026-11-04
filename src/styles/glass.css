@@ -120,11 +120,14 @@ body::after {
 }
 
 .nav-brand {
+  flex: 1;
+  min-width: 0;
   margin-right: auto;
   display: inline-flex;
   align-items: center;
   min-height: 44px;
   font-size: 15px;
+  line-height: 1.35;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -546,6 +549,49 @@ textarea {
 input::placeholder,
 textarea::placeholder {
   color: var(--text-faint);
+}
+
+.password-input {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.password-input input {
+  padding-right: 58px;
+  min-width: 0;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.password-toggle:hover:not(:disabled) {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+
+.password-toggle:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 input:focus,

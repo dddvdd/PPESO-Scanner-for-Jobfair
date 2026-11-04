@@ -10,7 +10,7 @@ The MVP must allow:
 2. Applicants to register through a public form.
 3. The system to securely store registration data.
 4. The system to generate a unique QR ticket after registration.
-5. Applicants to retrieve/view their ticket later.
+5. Applicants to save their QR ticket for later use.
 6. Staff to scan QR tickets using a mobile phone browser.
 7. The system to prevent duplicate check-ins.
 8. Admin/staff to search and retrieve registration records.
@@ -88,7 +88,7 @@ Can:
 * View published registration form
 * Submit registration
 * Receive/view QR ticket
-* Retrieve their ticket
+* Save a screenshot of their QR ticket
 
 Cannot:
 
@@ -306,31 +306,16 @@ It should also be possible to save/screenshot the ticket.
 
 ---
 
-# 8. Ticket Retrieval
+# 8. Ticket Retrieval — Removed
 
-Applicants must be able to retrieve their ticket after leaving the registration page.
+The public ticket retrieval page is removed. Applicants should save a screenshot
+of their QR ticket and keep their registration number before leaving the
+confirmation page. If a ticket is lost, authorized event staff can look up the
+registration at check-in.
 
-The MVP should avoid forcing applicants to create passwords unless authentication is technically required.
-
-Preferred approach:
-
-Registration Number
-+
-verification information
-
-↓
-
-Retrieve Ticket
-
-The implementation must protect against trivial enumeration of other applicants.
-
-Do not allow:
-
-`JF26-000001`
-
-to automatically reveal the applicant's personal information without verification.
-
-The exact verification mechanism should be selected during implementation based on the existing project and security model.
+Do not store ticket tokens in browser storage or include them in URLs. Existing
+database retrieval RPCs remain for backward compatibility, with their existing
+verification and anti-enumeration protections.
 
 ---
 
@@ -589,7 +574,7 @@ Instead of:
 
 show:
 
-`This registration already exists. Please retrieve your ticket instead.`
+`This registration already exists. Use your saved QR ticket or ask event staff to find your registration at check-in.`
 
 Instead of:
 
@@ -631,7 +616,7 @@ mechanism without considering:
 * successful registration
 * abuse
 
-A successful existing registration should normally direct the user toward ticket retrieval rather than repeatedly returning a generic rate-limit error.
+A successful existing registration should direct the user to their saved QR ticket or event staff rather than repeatedly returning a generic rate-limit error.
 
 Rate limiting must not become a substitute for duplicate prevention.
 
@@ -821,7 +806,7 @@ Verify registration directly against the database.
 Implement:
 
 * Ticket display
-* Ticket retrieval
+* Saved ticket and staff lookup guidance
 * QR display
 * Mobile layout
 
@@ -914,7 +899,7 @@ The MVP is NOT considered complete until this works:
 9. Applicant receives a unique registration number.
 10. Applicant receives a QR ticket.
 11. Applicant leaves the page.
-12. Applicant retrieves the ticket.
+12. Applicant presents their saved QR ticket.
 13. Staff opens scanner on a smartphone.
 14. Staff grants camera permission.
 15. Staff scans the QR.
@@ -940,7 +925,7 @@ The MVP is complete when:
 * Dynamic forms work.
 * Registration data persists in Supabase.
 * QR tickets are generated.
-* Tickets can be retrieved.
+* Applicants are instructed to save their QR tickets; staff can look up lost registrations.
 * QR scanner works on mobile browsers.
 * Check-in is database-authoritative.
 * Duplicate check-in is prevented.
@@ -959,6 +944,6 @@ Do not optimize for the most features.
 
 Optimize for this flow being **boringly reliable**:
 
-**Create Form → Register → Get QR → Retrieve QR → Scan → Check In → Retrieve Data.**
+**Create Form → Register → Save QR → Scan → Check In → Retrieve Data.**
 
 Everything else is secondary.

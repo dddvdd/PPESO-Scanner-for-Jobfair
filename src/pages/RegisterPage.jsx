@@ -5,7 +5,7 @@ import { IdentityField } from "../components/FormFieldRenderer.jsx";
 import RegistrationQuestions from "../components/RegistrationQuestions.jsx";
 
 const AVAILABILITY_MESSAGE = "This form is no longer available.";
-const DUPLICATE_MESSAGE = "This registration already exists — retrieve your ticket instead.";
+const DUPLICATE_MESSAGE = "This registration already exists. Use your saved QR ticket or ask event staff to find your registration at check-in.";
 
 const CONSENT_HEADING = "Data Privacy Consent";
 const CONSENT_ERROR = "Please tick the Data Privacy Consent box before submitting.";
@@ -285,8 +285,7 @@ export default function RegisterPage() {
     if (result.ok) {
       // Hand-off to the ticket flow uses router location state only: no URL
       // params, no storage, no logging. RegistrationSuccess renders the QR
-      // ticket immediately; /retrieve-ticket remains the recovery path if
-      // this transient state is lost.
+      // ticket immediately with instructions to save a screenshot.
       navigate("/registration/success", {
         replace: true,
         state: {
@@ -380,8 +379,7 @@ export default function RegisterPage() {
           <p>{banner.message}</p>
           {banner.duplicate && (
             <p>
-              Ticket retrieval arrives in the next update. Meanwhile you can{" "}
-              <Link to="/events">return to published events</Link>.
+              <Link to="/events">Return to published events</Link>.
             </p>
           )}
         </div>
