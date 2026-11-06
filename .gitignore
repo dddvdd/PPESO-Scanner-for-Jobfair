@@ -41,6 +41,7 @@ docs/GATES.md
 docs/archive/
 docs/municipal-scanner-accounts.csv
 docs/second brain/
+GEMINI.md
 
 # Private credential files
 *.pem
