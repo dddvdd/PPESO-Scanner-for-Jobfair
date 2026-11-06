@@ -40,6 +40,7 @@ scripts/audit.mjs
 docs/GATES.md
 docs/archive/
 docs/municipal-scanner-accounts.csv
+docs/second brain/
 
 # Private credential files
 *.pem
