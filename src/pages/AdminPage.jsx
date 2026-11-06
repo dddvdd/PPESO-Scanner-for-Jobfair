@@ -215,6 +215,20 @@ function EventsPanel({ pushUndo }) {
   const onlineCreateId = useRef(null);
   const [busyEventId, setBusyEventId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+  const cardRefs = useRef({});
+  const toggleRefs = useRef({});
+
+  function toggleExpanded(id) {
+    setDeletingId(null);
+    setExpandedId((prev) => (prev === id ? null : id));
+  }
+
+  useEffect(() => {
+    if (!expandedId) return;
+    toggleRefs.current[expandedId]?.focus({ preventScroll: true });
+    cardRefs.current[expandedId]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [expandedId]);
 
   async function reload() {
     const result = await adminListEvents();
@@ -672,196 +686,239 @@ function EventsPanel({ pushUndo }) {
         </div>
       )}
 
-      <ul className="event-list">
+      <ul className="event-list admin-event-list">
         {(events ?? []).map((ev) => {
           const busy = busyEventId === ev.id;
           const confirmingDelete = deletingId === ev.id;
+          const isExpanded = expandedId === ev.id;
+          const dateLabel = `${ev.event_date ?? "No date"}${
+            ev.event_end_date && ev.event_end_date !== ev.event_date ? ` – ${ev.event_end_date}` : ""
+          }`;
 
           return (
-            <li key={ev.id} className="glass-card event-card" style={{ minWidth: 0 }}>
-              <h2>{ev.name}</h2>
-              <p className="event-meta">
-                {ev.event_date ?? "No date"}
-                {ev.event_end_date && ev.event_end_date !== ev.event_date ? ` – ${ev.event_end_date}` : ""}
-                {ev.is_online ? " · Online" : ""}
-                {ev.location ? ` · ${ev.location}` : ""}
-              </p>
-              <p className="event-meta">Municipality: {ev.municipality ?? "Unassigned"}</p>
-              <span
-                className={`chip ${ev.status === "published" ? "" : "chip--muted"}`}
-                aria-label={`Status: ${ev.status}`}
-              >
-                <span className="chip-dot" aria-hidden="true" />
-                {ev.status}
-              </span>
-
-              {categoryData[ev.id] ? (
-                <div className="category-table-wrap">
-                  <table className="category-table">
-                    <thead>
-                      <tr>
-                        <th>Category</th>
-                        <th>Preregistrants</th>
-                        <th>Check-in</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="category-table-total">
-                        <td>Total</td>
-                        <td title={`MALE: ${(categoryData[ev.id].total_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].total_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].total_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].total_prereg ?? 0).toLocaleString()}</td>
-                        <td title={`MALE: ${(categoryData[ev.id].total_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].total_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].total_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].total_checkin ?? 0).toLocaleString()}</td>
-                      </tr>
-                      <tr>
-                        <td>PWD</td>
-                        <td title={`MALE: ${(categoryData[ev.id].pwd_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].pwd_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].pwd_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].pwd_prereg ?? 0).toLocaleString()}</td>
-                        <td title={`MALE: ${(categoryData[ev.id].pwd_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].pwd_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].pwd_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].pwd_checkin ?? 0).toLocaleString()}</td>
-                      </tr>
-                      <tr>
-                        <td>First-time Job seekers</td>
-                        <td title={`MALE: ${(categoryData[ev.id].first_time_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].first_time_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].first_time_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].first_time_prereg ?? 0).toLocaleString()}</td>
-                        <td title={`MALE: ${(categoryData[ev.id].first_time_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].first_time_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].first_time_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].first_time_checkin ?? 0).toLocaleString()}</td>
-                      </tr>
-                      <tr>
-                        <td>Returning OFW</td>
-                        <td title={`MALE: ${(categoryData[ev.id].ofw_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].ofw_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].ofw_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].ofw_prereg ?? 0).toLocaleString()}</td>
-                        <td title={`MALE: ${(categoryData[ev.id].ofw_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].ofw_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].ofw_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].ofw_checkin ?? 0).toLocaleString()}</td>
-                      </tr>
-                      <tr>
-                        <td>Returning workers</td>
-                        <td title={`MALE: ${(categoryData[ev.id].worker_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].worker_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].worker_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].worker_prereg ?? 0).toLocaleString()}</td>
-                        <td title={`MALE: ${(categoryData[ev.id].worker_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].worker_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].worker_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].worker_checkin ?? 0).toLocaleString()}</td>
-                      </tr>
-                      <tr>
-                        <td>Interested in Training</td>
-                        <td title={`MALE: ${(categoryData[ev.id].training_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].training_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].training_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].training_prereg ?? 0).toLocaleString()}</td>
-                        <td title={`MALE: ${(categoryData[ev.id].training_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].training_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].training_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].training_checkin ?? 0).toLocaleString()}</td>
-                      </tr>
-                      <tr>
-                        <td>Walk-in</td>
-                        <td title={`MALE: ${(categoryData[ev.id].walkin_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].walkin_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].walkin_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].walkin_prereg ?? 0).toLocaleString()}</td>
-                        <td title={`MALE: ${(categoryData[ev.id].walkin_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].walkin_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].walkin_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].walkin_checkin ?? 0).toLocaleString()}</td>
-                      </tr>
-                      <tr>
-                        <td>Youth (30 &amp; below)</td>
-                        <td title={`MALE: ${(categoryData[ev.id].youth_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].youth_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].youth_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].youth_prereg ?? 0).toLocaleString()}</td>
-                        <td title={`MALE: ${(categoryData[ev.id].youth_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].youth_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].youth_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].youth_checkin ?? 0).toLocaleString()}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="event-meta" aria-live="polite">
-                  Loading category data…
-                </p>
-              )}
-
-              {interviewSummary[ev.id] ? (
-                <div className="category-table-wrap">
-                  <table className="category-table">
-                    <thead>
-                      <tr>
-                        <th>Local Interview Result</th>
-                        <th>Female</th>
-                        <th>Male</th>
-                        <th>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>HOTS</td>
-                        <td>{(interviewSummary[ev.id].hots_female ?? 0).toLocaleString()}</td>
-                        <td>{(interviewSummary[ev.id].hots_male ?? 0).toLocaleString()}</td>
-                        <td>{(interviewSummary[ev.id].hots_total ?? 0).toLocaleString()}</td>
-                      </tr>
-                      <tr>
-                        <td>Near Hire</td>
-                        <td>{(interviewSummary[ev.id].near_hire_female ?? 0).toLocaleString()}</td>
-                        <td>{(interviewSummary[ev.id].near_hire_male ?? 0).toLocaleString()}</td>
-                        <td>{(interviewSummary[ev.id].near_hire_total ?? 0).toLocaleString()}</td>
-                      </tr>
-                      <tr>
-                        <td>Qualified</td>
-                        <td>{(interviewSummary[ev.id].qualified_female ?? 0).toLocaleString()}</td>
-                        <td>{(interviewSummary[ev.id].qualified_male ?? 0).toLocaleString()}</td>
-                        <td>{(interviewSummary[ev.id].qualified_total ?? 0).toLocaleString()}</td>
-                      </tr>
-                      <tr>
-                        <td>Not Qualified</td>
-                        <td>{(interviewSummary[ev.id].not_qualified_female ?? 0).toLocaleString()}</td>
-                        <td>{(interviewSummary[ev.id].not_qualified_male ?? 0).toLocaleString()}</td>
-                        <td>{(interviewSummary[ev.id].not_qualified_total ?? 0).toLocaleString()}</td>
-                      </tr>
-                      <tr className="category-table-total">
-                        <td>Total</td>
-                        <td>{(interviewSummary[ev.id].total_female ?? 0).toLocaleString()}</td>
-                        <td>{(interviewSummary[ev.id].total_male ?? 0).toLocaleString()}</td>
-                        <td>{((interviewSummary[ev.id].total_female ?? 0) + (interviewSummary[ev.id].total_male ?? 0)).toLocaleString()}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              ) : null}
-
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                <Link
-                  className="btn btn--ghost btn--small"
-                  to={`/admin/events/${ev.id}/registrants`}
-                >
-                  Registrants
-                </Link>
+            <li
+              key={ev.id}
+              ref={(el) => {
+                cardRefs.current[ev.id] = el;
+              }}
+              className={`glass-card event-card admin-event-card${isExpanded ? " admin-event-card--expanded" : ""}`}
+              style={{ minWidth: 0 }}
+            >
+              <h2 className="admin-event-heading">
                 <button
+                  ref={(el) => {
+                    toggleRefs.current[ev.id] = el;
+                  }}
                   type="button"
-                  className="btn btn--ghost btn--small"
-                  disabled={busy}
-                  onClick={() => toggleStatus(ev)}
+                  className="admin-event-toggle"
+                  aria-expanded={isExpanded}
+                  aria-controls={`admin-event-body-${ev.id}`}
+                  onClick={() => toggleExpanded(ev.id)}
                 >
-                  {busy
-                    ? "Working…"
-                    : ev.status === "published"
-                      ? "Unpublish"
-                      : "Publish"}
+                  <span className="admin-event-title">{ev.name}</span>
+                  <span className="admin-event-date">{dateLabel}</span>
+                  <svg
+                    className="admin-event-chevron"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
                 </button>
-                {!confirmingDelete && (
-                  <>
-                    <button
-                      type="button"
+              </h2>
+
+              {isExpanded && (
+                <div id={`admin-event-body-${ev.id}`} className="admin-event-body">
+                  <p className="event-meta">
+                    {dateLabel}
+                    {ev.is_online ? " · Online" : ""}
+                    {ev.location ? ` · ${ev.location}` : ""}
+                  </p>
+                  <p className="event-meta">Municipality: {ev.municipality ?? "Unassigned"}</p>
+                  <span
+                    className={`chip ${ev.status === "published" ? "" : "chip--muted"}`}
+                    aria-label={`Status: ${ev.status}`}
+                  >
+                    <span className="chip-dot" aria-hidden="true" />
+                    {ev.status}
+                  </span>
+
+                  {categoryData[ev.id] ? (
+                    <div className="category-table-wrap">
+                      <table className="category-table">
+                        <thead>
+                          <tr>
+                            <th>Category</th>
+                            <th>Preregistrants</th>
+                            <th>Check-in</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="category-table-total">
+                            <td>Total</td>
+                            <td title={`MALE: ${(categoryData[ev.id].total_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].total_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].total_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].total_prereg ?? 0).toLocaleString()}</td>
+                            <td title={`MALE: ${(categoryData[ev.id].total_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].total_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].total_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].total_checkin ?? 0).toLocaleString()}</td>
+                          </tr>
+                          <tr>
+                            <td>PWD</td>
+                            <td title={`MALE: ${(categoryData[ev.id].pwd_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].pwd_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].pwd_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].pwd_prereg ?? 0).toLocaleString()}</td>
+                            <td title={`MALE: ${(categoryData[ev.id].pwd_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].pwd_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].pwd_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].pwd_checkin ?? 0).toLocaleString()}</td>
+                          </tr>
+                          <tr>
+                            <td>First-time Job seekers</td>
+                            <td title={`MALE: ${(categoryData[ev.id].first_time_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].first_time_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].first_time_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].first_time_prereg ?? 0).toLocaleString()}</td>
+                            <td title={`MALE: ${(categoryData[ev.id].first_time_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].first_time_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].first_time_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].first_time_checkin ?? 0).toLocaleString()}</td>
+                          </tr>
+                          <tr>
+                            <td>Returning OFW</td>
+                            <td title={`MALE: ${(categoryData[ev.id].ofw_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].ofw_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].ofw_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].ofw_prereg ?? 0).toLocaleString()}</td>
+                            <td title={`MALE: ${(categoryData[ev.id].ofw_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].ofw_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].ofw_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].ofw_checkin ?? 0).toLocaleString()}</td>
+                          </tr>
+                          <tr>
+                            <td>Returning workers</td>
+                            <td title={`MALE: ${(categoryData[ev.id].worker_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].worker_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].worker_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].worker_prereg ?? 0).toLocaleString()}</td>
+                            <td title={`MALE: ${(categoryData[ev.id].worker_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].worker_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].worker_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].worker_checkin ?? 0).toLocaleString()}</td>
+                          </tr>
+                          <tr>
+                            <td>Interested in Training</td>
+                            <td title={`MALE: ${(categoryData[ev.id].training_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].training_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].training_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].training_prereg ?? 0).toLocaleString()}</td>
+                            <td title={`MALE: ${(categoryData[ev.id].training_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].training_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].training_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].training_checkin ?? 0).toLocaleString()}</td>
+                          </tr>
+                          <tr>
+                            <td>Walk-in</td>
+                            <td title={`MALE: ${(categoryData[ev.id].walkin_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].walkin_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].walkin_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].walkin_prereg ?? 0).toLocaleString()}</td>
+                            <td title={`MALE: ${(categoryData[ev.id].walkin_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].walkin_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].walkin_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].walkin_checkin ?? 0).toLocaleString()}</td>
+                          </tr>
+                          <tr>
+                            <td>Youth (30 &amp; below)</td>
+                            <td title={`MALE: ${(categoryData[ev.id].youth_prereg_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].youth_prereg_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].youth_prereg_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].youth_prereg ?? 0).toLocaleString()}</td>
+                            <td title={`MALE: ${(categoryData[ev.id].youth_checkin_male ?? 0).toLocaleString()}\nFEMALE: ${(categoryData[ev.id].youth_checkin_female ?? 0).toLocaleString()}\nUNSPECIFIED: ${(categoryData[ev.id].youth_checkin_unspecified ?? 0).toLocaleString()}`}>{(categoryData[ev.id].youth_checkin ?? 0).toLocaleString()}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="event-meta" aria-live="polite">
+                      Loading category data…
+                    </p>
+                  )}
+
+                  {interviewSummary[ev.id] ? (
+                    <div className="category-table-wrap">
+                      <table className="category-table">
+                        <thead>
+                          <tr>
+                            <th>Local Interview Result</th>
+                            <th>Female</th>
+                            <th>Male</th>
+                            <th>Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>HOTS</td>
+                            <td>{(interviewSummary[ev.id].hots_female ?? 0).toLocaleString()}</td>
+                            <td>{(interviewSummary[ev.id].hots_male ?? 0).toLocaleString()}</td>
+                            <td>{(interviewSummary[ev.id].hots_total ?? 0).toLocaleString()}</td>
+                          </tr>
+                          <tr>
+                            <td>Near Hire</td>
+                            <td>{(interviewSummary[ev.id].near_hire_female ?? 0).toLocaleString()}</td>
+                            <td>{(interviewSummary[ev.id].near_hire_male ?? 0).toLocaleString()}</td>
+                            <td>{(interviewSummary[ev.id].near_hire_total ?? 0).toLocaleString()}</td>
+                          </tr>
+                          <tr>
+                            <td>Qualified</td>
+                            <td>{(interviewSummary[ev.id].qualified_female ?? 0).toLocaleString()}</td>
+                            <td>{(interviewSummary[ev.id].qualified_male ?? 0).toLocaleString()}</td>
+                            <td>{(interviewSummary[ev.id].qualified_total ?? 0).toLocaleString()}</td>
+                          </tr>
+                          <tr>
+                            <td>Not Qualified</td>
+                            <td>{(interviewSummary[ev.id].not_qualified_female ?? 0).toLocaleString()}</td>
+                            <td>{(interviewSummary[ev.id].not_qualified_male ?? 0).toLocaleString()}</td>
+                            <td>{(interviewSummary[ev.id].not_qualified_total ?? 0).toLocaleString()}</td>
+                          </tr>
+                          <tr className="category-table-total">
+                            <td>Total</td>
+                            <td>{(interviewSummary[ev.id].total_female ?? 0).toLocaleString()}</td>
+                            <td>{(interviewSummary[ev.id].total_male ?? 0).toLocaleString()}</td>
+                            <td>{((interviewSummary[ev.id].total_female ?? 0) + (interviewSummary[ev.id].total_male ?? 0)).toLocaleString()}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
+
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                    <Link
                       className="btn btn--ghost btn--small"
-                      disabled={busy || saving}
-                      onClick={() => openEdit(ev)}
+                      to={`/admin/events/${ev.id}/registrants`}
                     >
-                      Edit
-                    </button>
+                      Registrants
+                    </Link>
                     <button
                       type="button"
                       className="btn btn--ghost btn--small"
                       disabled={busy}
-                      onClick={() => setDeletingId(ev.id)}
+                      onClick={() => toggleStatus(ev)}
                     >
-                      Delete…
+                      {busy
+                        ? "Working…"
+                        : ev.status === "published"
+                          ? "Unpublish"
+                          : "Publish"}
                     </button>
-                  </>
-                )}
-                {confirmingDelete && (
-                  <>
-                    <button
-                      type="button"
-                      className="btn btn--danger btn--small"
-                      disabled={busy}
-                      onClick={() => performDelete(ev)}
-                    >
-                      {busy ? "Working…" : "Yes, delete permanently"}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--ghost btn--small"
-                      disabled={busy}
-                      onClick={() => setDeletingId(null)}
-                    >
-                      Cancel
-                    </button>
-                  </>
-                )}
-              </div>
+                    {!confirmingDelete && (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--small"
+                          disabled={busy || saving}
+                          onClick={() => openEdit(ev)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--small"
+                          disabled={busy}
+                          onClick={() => setDeletingId(ev.id)}
+                        >
+                          Delete…
+                        </button>
+                      </>
+                    )}
+                    {confirmingDelete && (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn--danger btn--small"
+                          disabled={busy}
+                          onClick={() => performDelete(ev)}
+                        >
+                          {busy ? "Working…" : "Yes, delete permanently"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--small"
+                          disabled={busy}
+                          onClick={() => setDeletingId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </li>
           );
         })}
