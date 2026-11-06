@@ -26,6 +26,10 @@ export const ERROR_TOKENS = Object.freeze({
   INVALID_MOBILE: "INVALID_MOBILE",
   DUPLICATE_REGISTRATION: "DUPLICATE_REGISTRATION",
   REGISTRATION_FAILED: "REGISTRATION_FAILED",
+  INVALID_ONLINE_POSITIONS: "INVALID_ONLINE_POSITIONS",
+  ONLINE_EVENT_NOT_FOUND: "ONLINE_EVENT_NOT_FOUND",
+  ONLINE_EVENT_SCHEMA_UNAVAILABLE: "ONLINE_EVENT_SCHEMA_UNAVAILABLE",
+  INVALID_EVENT_DATE_RANGE: "INVALID_EVENT_DATE_RANGE",
   TICKET_NOT_FOUND: "TICKET_NOT_FOUND",
   REGISTRATION_NOT_FOUND: "REGISTRATION_NOT_FOUND",
   INVALID_TICKET: "INVALID_TICKET",
@@ -63,6 +67,12 @@ const TOKEN_MESSAGES = Object.freeze({
     "This registration already exists. Use your saved QR ticket or ask event staff to find your registration at check-in.",
   [ERROR_TOKENS.REGISTRATION_FAILED]:
     "We could not complete your registration. Please try again.",
+  [ERROR_TOKENS.INVALID_ONLINE_POSITIONS]:
+    "Enter 1 to 500 positions, with one title of up to 500 characters per line.",
+  [ERROR_TOKENS.ONLINE_EVENT_NOT_FOUND]: "This online event is no longer available.",
+  [ERROR_TOKENS.ONLINE_EVENT_SCHEMA_UNAVAILABLE]:
+    "Online event setup is missing from the connected database. Apply the pending Supabase migrations, then retry.",
+  [ERROR_TOKENS.INVALID_EVENT_DATE_RANGE]: "Choose a start date and an end date on or after it.",
   [ERROR_TOKENS.TICKET_NOT_FOUND]:
     "We could not find a ticket matching that information.",
   [ERROR_TOKENS.REGISTRATION_NOT_FOUND]: "This registration could not be found.",
@@ -134,7 +144,10 @@ export function describeError(raw) {
     };
   }
 
-  const parsed = parseErrorToken(raw?.message);
+  const parsed = parseErrorToken(raw?.message) ??
+    (raw?.code === "23514" && String(raw.message).includes("events_date_range_valid")
+      ? { token: ERROR_TOKENS.INVALID_EVENT_DATE_RANGE, field: null }
+      : null);
   if (parsed) {
     return {
       kind: ERROR_KINDS.APPLICATION,

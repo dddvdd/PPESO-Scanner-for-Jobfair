@@ -34,7 +34,7 @@ export default function EventPicker() {
       if (cancelled) return;
       if (result.ok) {
         const today = todayInManila();
-        const visible = (result.data ?? []).filter(e => !e.event_date || e.event_date >= today);
+        const visible = (result.data ?? []).filter(e => !e.event_date || (e.event_end_date ?? e.event_date) >= today);
         setEvents(visible);
         setStatus("ready");
       } else {
@@ -48,12 +48,13 @@ export default function EventPicker() {
   }, [retryCount]);
 
   useEffect(() => {
-    if (!events.length) return;
+    const inPersonEvents = events.filter(event => !event.is_online);
+    if (!inPersonEvents.length) return;
     let cancelled = false;
     let timer;
     const refresh = async () => {
       try {
-        const forecasts = await getEventWeather(events, getSupabase());
+        const forecasts = await getEventWeather(inPersonEvents, getSupabase());
         if (cancelled) return;
         setWeatherByEvent(forecasts);
         const expiries = Object.values(forecasts).map((row) => Date.parse(row.expires_at));
@@ -139,13 +140,20 @@ export default function EventPicker() {
           <li key={event.id} className="glass-card event-card">
             <div className="event-card-heading">
               <h2>{event.name}</h2>
-              {weatherByEvent[event.id] && (
+              {!event.is_online && weatherByEvent[event.id] && (
                 <EventWeatherIcon kind={weatherByEvent[event.id].kind} conditionLabel={weatherByEvent[event.id].condition_label} feelsLikeHigh={weatherByEvent[event.id].feels_like_high_celsius} updatedAt={weatherByEvent[event.id].fetched_at} date={event.event_date} location={event.location} />
               )}
             </div>
             <dl className="event-details">
-              <div><dt>Date</dt><dd>{event.event_date ? <time dateTime={event.event_date}>{formatEventDate(event.event_date)}</time> : "To be announced"}</dd></div>
-              <div><dt>Venue</dt><dd>{event.location || "To be announced"}</dd></div>
+              <div><dt>Date</dt><dd>{event.event_date ? <>
+                <time dateTime={event.event_date}>{formatEventDate(event.event_date)}</time>
+                {event.event_end_date && event.event_end_date !== event.event_date && <>
+                  {" – "}<time dateTime={event.event_end_date}>{formatEventDate(event.event_end_date)}</time>
+                </>}
+              </> : "To be announced"}</dd></div>
+              {event.is_online
+                ? <div><dt>Format</dt><dd>Online</dd></div>
+                : <div><dt>Venue</dt><dd>{event.location || "To be announced"}</dd></div>}
             </dl>
             {event.description && <p className="event-desc">{event.description}</p>}
             {cardNotices[event.id] ? (
@@ -159,7 +167,7 @@ export default function EventPicker() {
           </li>
         ))}
       </ul>
-      {Object.keys(weatherByEvent).length > 0 && (
+      {events.some(event => !event.is_online && weatherByEvent[event.id]) && (
         <p className="event-weather-credit">Includes data from Google Maps · Source: Includes weather data from Google · Location data: <a href="https://www.geonames.org/" target="_blank" rel="noreferrer">GeoNames</a></p>
       )}
     </section>

@@ -18,7 +18,7 @@ import {
  * parent therefore immediately re-scopes its children (PSGC lists are cached,
  * so re-scoping is instant). Selecting or clearing a parent resets children.
  */
-export default function AddressFieldsGroup({ keys, answers, errors, disabled, onChange, hideRequired }) {
+export default function AddressFieldsGroup({ keys, answers, errors, disabled, onChange, hideRequired, blockBrowserAutofill }) {
   const provinceText = answers[keys.province] ?? "";
   const cityText = answers[keys.city] ?? "";
 
@@ -58,6 +58,7 @@ export default function AddressFieldsGroup({ keys, answers, errors, disabled, on
         value={provinceText}
         error={errors[keys.province]}
         disabled={disabled}
+        blockBrowserAutofill={blockBrowserAutofill}
         loadOptions={loadProvinces}
         onSelect={(name) => {
           clearChildren(keys.city, keys.barangay);
@@ -78,6 +79,7 @@ export default function AddressFieldsGroup({ keys, answers, errors, disabled, on
         value={cityText}
         error={errors[keys.city]}
         disabled={disabled}
+        blockBrowserAutofill={blockBrowserAutofill}
         enabled={Boolean(provinceText.trim())}
         enabledHint="Pick your province from the suggestions to unlock this field."
         loadOptions={loadCities}
@@ -103,6 +105,7 @@ export default function AddressFieldsGroup({ keys, answers, errors, disabled, on
         value={answers[keys.barangay] ?? ""}
         error={errors[keys.barangay]}
         disabled={disabled}
+        blockBrowserAutofill={blockBrowserAutofill}
         enabled={Boolean(cityText.trim())}
         enabledHint="Pick your municipality or city to unlock barangay suggestions."
         loadOptions={loadBarangays}

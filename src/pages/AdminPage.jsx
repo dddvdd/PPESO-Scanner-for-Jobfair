@@ -20,15 +20,18 @@ import {
   adminRestoreEvent,
   adminRestoreFormFields,
   adminRestoreForms,
+  adminSaveOnlineEvent,
   adminUpdateEvent,
   adminUpdateProfileRole,
   exportPreRegistrants,
   exportCheckIns,
   adminRegistrationCorrectionCampaign,
+  getPublishedFormWithFields,
 } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import UndoToast from "../components/UndoToast.jsx";
 import PasswordInput from "../components/PasswordInput.jsx";
+import EventDatePicker from "../components/EventDatePicker.jsx";
 import { preRegistrantsCsv, downloadPreRegistrantsCsv } from "../lib/preRegistrantsExport.js";
 import { checkinsCsv, downloadCheckinsCsv } from "../lib/checkinsExport.js";
 import { MUNICIPALITIES } from "../lib/municipalities.js";
@@ -41,7 +44,7 @@ const TABS = [
   { id: "staff", label: "Staff roles" },
 ];
 
-const BLANK_DRAFT = { name: "", description: "", event_date: "", location: "", municipality: "" };
+const BLANK_DRAFT = { name: "", description: "", event_date: "", event_end_date: "", location: "", municipality: "", isOnline: false, positions: "" };
 
 /**
  * Brief confirmation message that clears itself (success-feedback).
@@ -203,9 +206,13 @@ function EventsPanel({ pushUndo }) {
   const [notice, flash] = useFlash();
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const eventDialogRef = useRef(null);
   const [editing, setEditing] = useState(null); // event row being edited
   const [draft, setDraft] = useState(BLANK_DRAFT);
   const [draftError, setDraftError] = useState(null);
+  const [positionsStatus, setPositionsStatus] = useState("ready");
+  const [positionsAttempt, setPositionsAttempt] = useState(0);
+  const onlineCreateId = useRef(null);
   const [busyEventId, setBusyEventId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
@@ -245,6 +252,38 @@ function EventsPanel({ pushUndo }) {
   }, []);
 
   useEffect(() => {
+    if (!showForm) return;
+    const dialog = eventDialogRef.current;
+    const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement;
+    dialog.showModal();
+    document.body.style.overflow = "hidden";
+    return () => {
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus({ preventScroll: true });
+      }
+    };
+  }, [showForm]);
+
+  useEffect(() => {
+    if (!editing?.is_online) return;
+    let active = true;
+    getPublishedFormWithFields(editing.id).then(result => {
+      if (!active) return;
+      if (!result.ok) {
+        setPositionsStatus("error");
+        return;
+      }
+      const position = result.data?.fields.find(field => field.field_key === "position_applying_for");
+      setDraft(current => ({ ...current, positions: (position?.options ?? []).join("\n") }));
+      setPositionsStatus("ready");
+    });
+    return () => { active = false; };
+  }, [editing, positionsAttempt]);
+
+  useEffect(() => {
     if (!events?.length) return;
     let active = true;
     let loading = false;
@@ -264,6 +303,8 @@ function EventsPanel({ pushUndo }) {
   }, [events]);
 
   function openCreate() {
+    onlineCreateId.current = null;
+    setPositionsStatus("ready");
     setEditing(null);
     setDraft(BLANK_DRAFT);
     setDraftError(null);
@@ -271,13 +312,17 @@ function EventsPanel({ pushUndo }) {
   }
 
   function openEdit(ev) {
-    setEditing(ev);
+    setPositionsStatus(ev.is_online ? "loading" : "ready");
+    setEditing({ ...ev });
     setDraft({
       name: ev.name ?? "",
       description: ev.description ?? "",
       event_date: ev.event_date ?? "",
+      event_end_date: ev.event_end_date ?? "",
       location: ev.location ?? "",
       municipality: ev.municipality ?? "",
+      isOnline: Boolean(ev.is_online),
+      positions: "",
     });
     setDraftError(null);
     setShowForm(true);
@@ -292,10 +337,23 @@ function EventsPanel({ pushUndo }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (saving || (draft.isOnline && positionsStatus !== "ready")) return;
     if (!draft.name.trim()) {
       setDraftError("Event name is required.");
       return;
     }
+    if (draft.event_end_date && (!draft.event_date || draft.event_end_date < draft.event_date)) {
+      setDraftError("Choose a start date and an end date on or after it.");
+      return;
+    }
+    const positions = draft.isOnline
+      ? [...new Set(draft.positions.split(/\r?\n/).map(line => line.trim()).filter(Boolean))]
+      : [];
+    if (draft.isOnline && (!positions.length || positions.length > 500 || positions.some(title => [...title].length > 500))) {
+      setDraftError("Enter 1 to 500 positions, with one title of up to 500 characters per line.");
+      return;
+    }
+
     setSaving(true);
     setDraftError(null);
 
@@ -303,9 +361,24 @@ function EventsPanel({ pushUndo }) {
       name: draft.name.trim(),
       description: draft.description.trim() || null,
       event_date: draft.event_date || null,
+      event_end_date: draft.event_end_date || null,
       location: draft.location.trim() || null,
       municipality: draft.municipality || null,
     };
+
+    if (draft.isOnline) {
+      const eventId = editing?.id ?? (onlineCreateId.current ??= crypto.randomUUID());
+      const result = await adminSaveOnlineEvent(eventId, !editing, fields, positions);
+      setSaving(false);
+      if (!result.ok) {
+        setDraftError(result.error.message);
+        return;
+      }
+      closeForm();
+      flash(editing ? `"${fields.name}" was updated.` : `"${fields.name}" is live — jobseekers can register now.`);
+      reload();
+      return;
+    }
 
     if (editing) {
       const updated = await adminUpdateEvent(editing.id, fields);
@@ -387,11 +460,16 @@ function EventsPanel({ pushUndo }) {
     // it verbatim: the event row, its forms, and each form's fields.
     const formsSnap = await adminListEventForms(ev.id);
     const forms = formsSnap.ok ? formsSnap.data ?? [] : [];
-    let fields = [];
-    if (forms.length > 0) {
-      const fieldsSnap = await adminListFormFields(forms.map((f) => f.id));
-      fields = fieldsSnap.ok ? fieldsSnap.data ?? [] : [];
+    const fieldsSnap = forms.length > 0
+      ? await adminListFormFields(forms.map((f) => f.id))
+      : { ok: true, data: [] };
+    if (ev.is_online && (!formsSnap.ok || !fieldsSnap.ok)) {
+      setBusyEventId(null);
+      setDeletingId(null);
+      setError("Could not back up the registration form. Please try again.");
+      return;
     }
+    const fields = fieldsSnap.ok ? fieldsSnap.data ?? [] : [];
 
     const result = await adminDeleteEvent(ev.id);
     setBusyEventId(null);
@@ -412,7 +490,8 @@ function EventsPanel({ pushUndo }) {
       seconds: 8,
       afterMessage: `"${ev.name}" was restored.`,
       run: async () => {
-        const restoredEvent = await adminRestoreEvent(ev);
+        const republish = ev.is_online && ev.status === "published";
+        const restoredEvent = await adminRestoreEvent(republish ? { ...ev, status: "draft" } : ev);
         if (!restoredEvent.ok) return restoredEvent.error.message;
         if (forms.length > 0) {
           const restoredForms = await adminRestoreForms(forms);
@@ -421,6 +500,10 @@ function EventsPanel({ pushUndo }) {
         if (fields.length > 0) {
           const restoredFields = await adminRestoreFormFields(fields);
           if (!restoredFields.ok) return `event and form restored, but their questions did not: ${restoredFields.error.message}`;
+        }
+        if (republish) {
+          const published = await adminUpdateEvent(ev.id, { status: "published" });
+          if (!published.ok) return `event restored as a draft: ${published.error.message}`;
         }
         reload();
         return null;
@@ -443,13 +526,28 @@ function EventsPanel({ pushUndo }) {
       )}
       <Notice text={notice} />
 
-      {!showForm && !isEmpty && (
+      {!isEmpty && (
         <button type="button" className="btn btn--primary btn--block" onClick={openCreate}>
           + New event
         </button>
       )}
 
       {showForm && (
+        <dialog
+          ref={eventDialogRef}
+          className="event-dialog"
+          aria-labelledby="event-dialog-title"
+          onCancel={(event) => {
+            event.preventDefault();
+            if (!saving) closeForm();
+          }}
+        >
+          <div className="event-dialog-header">
+            <h2 id="event-dialog-title">{editing ? "Edit event" : "Create event"}</h2>
+            <button type="button" className="btn btn--ghost btn--small" disabled={saving} onClick={closeForm} aria-label="Close event form">
+              Close
+            </button>
+          </div>
         <form className="form-section" onSubmit={handleSubmit} noValidate>
           <div className="form-stack">
             {editing && (
@@ -460,6 +558,7 @@ function EventsPanel({ pushUndo }) {
               <input
                 id="ev-name"
                 type="text"
+                autoFocus
                 value={draft.name}
                 disabled={saving}
                 aria-invalid={draftError && !draft.name.trim() ? true : undefined}
@@ -467,15 +566,46 @@ function EventsPanel({ pushUndo }) {
               />
             </div>
             <div className="field">
-              <label htmlFor="ev-date">Date</label>
-              <input
-                id="ev-date"
-                type="date"
-                value={draft.event_date}
-                disabled={saving}
-                onChange={(e) => setDraft((d) => ({ ...d, event_date: e.target.value }))}
-              />
+              <label htmlFor="ev-format">Event format</label>
+              <select id="ev-format" value={draft.isOnline ? "online" : "in-person"} disabled={saving || Boolean(editing)}
+                onChange={(e) => setDraft((d) => ({ ...d, isOnline: e.target.value === "online" }))}>
+                <option value="in-person">In person</option>
+                <option value="online">Online</option>
+              </select>
             </div>
+            {draft.isOnline && (
+              <div className="field">
+                <label htmlFor="ev-positions">Available positions *</label>
+                <textarea
+                  id="ev-positions"
+                  rows={5}
+                  required
+                  value={draft.positions}
+                  disabled={saving || positionsStatus !== "ready"}
+                  aria-describedby="ev-positions-hint"
+                  onChange={(e) => setDraft((d) => ({ ...d, positions: e.target.value }))}
+                />
+                <p id="ev-positions-hint" className="field-hint">
+                  Enter one position title per line. Applicants will choose one when they register.
+                </p>
+                {positionsStatus === "loading" && <p role="status">Loading positions…</p>}
+                {positionsStatus === "error" && (
+                  <>
+                    <p role="alert" className="field-error">Could not load the current positions.</p>
+                    <button type="button" className="btn btn--ghost btn--small" onClick={() => {
+                      setPositionsStatus("loading");
+                      setPositionsAttempt(attempt => attempt + 1);
+                    }}>Retry loading positions</button>
+                  </>
+                )}
+              </div>
+            )}
+            <EventDatePicker
+              start={draft.event_date}
+              end={draft.event_end_date}
+              disabled={saving}
+              onChange={(start, end) => setDraft(current => ({ ...current, event_date: start, event_end_date: end }))}
+            />
             <div className="field">
               <label htmlFor="ev-municipality">Municipality / City</label>
               <select id="ev-municipality" value={draft.municipality} disabled={saving}
@@ -485,16 +615,18 @@ function EventsPanel({ pushUndo }) {
               </select>
               <p className="field-hint">Only the scanner assigned to this municipality can access this event.</p>
             </div>
-            <div className="field">
-              <label htmlFor="ev-location">Location</label>
-              <input
-                id="ev-location"
-                type="text"
-                value={draft.location}
-                disabled={saving}
-                onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))}
-              />
-            </div>
+            {!draft.isOnline && (
+              <div className="field">
+                <label htmlFor="ev-location">Location</label>
+                <input
+                  id="ev-location"
+                  type="text"
+                  value={draft.location}
+                  disabled={saving}
+                  onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))}
+                />
+              </div>
+            )}
             <div className="field">
               <label htmlFor="ev-desc">Description</label>
               <textarea
@@ -510,12 +642,12 @@ function EventsPanel({ pushUndo }) {
             )}
             {!editing && (
               <p className="page-lead">
-                A blank registration form is created automatically — jobseekers can
+                A registration form is created automatically — jobseekers can
                 register as soon as the event is published.
               </p>
             )}
             <div style={{ display: "flex", gap: 10 }}>
-              <button type="submit" className="btn btn--primary btn--block" disabled={saving}>
+              <button type="submit" className="btn btn--primary btn--block" disabled={saving || (draft.isOnline && positionsStatus !== "ready")}>
                 {saving ? "Saving…" : editing ? "Save changes" : "Create event"}
               </button>
               <button type="button" className="btn btn--ghost" disabled={saving} onClick={closeForm}>
@@ -524,9 +656,10 @@ function EventsPanel({ pushUndo }) {
             </div>
           </div>
         </form>
+        </dialog>
       )}
 
-      {isEmpty && !showForm && !error && (
+      {isEmpty && !error && (
         <div className="glass-card event-card">
           <h2>No events yet</h2>
           <p className="event-desc">
@@ -549,6 +682,8 @@ function EventsPanel({ pushUndo }) {
               <h2>{ev.name}</h2>
               <p className="event-meta">
                 {ev.event_date ?? "No date"}
+                {ev.event_end_date && ev.event_end_date !== ev.event_date ? ` – ${ev.event_end_date}` : ""}
+                {ev.is_online ? " · Online" : ""}
                 {ev.location ? ` · ${ev.location}` : ""}
               </p>
               <p className="event-meta">Municipality: {ev.municipality ?? "Unassigned"}</p>
@@ -691,7 +826,7 @@ function EventsPanel({ pushUndo }) {
                     <button
                       type="button"
                       className="btn btn--ghost btn--small"
-                      disabled={busy}
+                      disabled={busy || saving}
                       onClick={() => openEdit(ev)}
                     >
                       Edit

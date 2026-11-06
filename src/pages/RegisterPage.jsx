@@ -159,7 +159,7 @@ export default function RegisterPage() {
         return;
       }
       const event = (eventsResult.data ?? []).find((e) => e.id === eventId);
-      if (!event) {
+      if (!event || (event.is_online && event.status !== "published")) {
         setUnavailableMessage(AVAILABILITY_MESSAGE);
         setLoading(false);
         return;
@@ -244,7 +244,8 @@ export default function RegisterPage() {
       const target = firstInvalidIdentity
         ? document.getElementById(`identity-${firstInvalidIdentity}`)
         : firstInvalidField
-          ? document.getElementById(`field-${firstInvalidField.field_key}`)
+          ? document.getElementById(`field-${firstInvalidField.field_key}`) ??
+            document.getElementById(`addr-${firstInvalidField.field_key}`)
           : consentMissing
             ? document.getElementById("data-privacy-consent")
             : null;
@@ -398,7 +399,7 @@ export default function RegisterPage() {
         </fieldset>
 
         <RegistrationQuestions fields={fields} answers={answers} fieldErrors={fieldErrors}
-          submitting={submitting} handleAnswerChange={handleAnswerChange} />
+          submitting={submitting} handleAnswerChange={handleAnswerChange} blockAddressAutofill />
 
         {/* Mandatory Data Privacy Act consent — submission is blocked until ticked */}
         <fieldset className="form-section" aria-describedby={consentError ? "consent-error" : undefined}>

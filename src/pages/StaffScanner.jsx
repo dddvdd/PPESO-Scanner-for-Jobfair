@@ -71,7 +71,7 @@ function EarlyCheckInForm({ item, events, setEvents, eventId, setEventId, proces
       <select id="early-checkin-event" className="sc-search-input" required value={eventId} onChange={e => setEventId(e.target.value)} disabled={processing}>
         <option value="">Select an event…</option>
         {events.map(ev => (
-          <option key={ev.id} value={ev.id}>{ev.name}{ev.event_date ? ` (${ev.event_date})` : ""}{ev.location ? ` — ${ev.location}` : ""}</option>
+          <option key={ev.id} value={ev.id}>{ev.name}{ev.event_date ? ` (${ev.event_date}${ev.event_end_date && ev.event_end_date !== ev.event_date ? ` – ${ev.event_end_date}` : ""})` : ""}{ev.location ? ` — ${ev.location}` : ""}</option>
         ))}
       </select>
       <button className="sc-btn sc-btn--primary" type="submit" disabled={processing || !eventId}>

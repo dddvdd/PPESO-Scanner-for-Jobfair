@@ -1,3 +1,5 @@
+import { rejectBrowserAutofill } from "../lib/addressInput.js";
+
 /**
  * Renders one form_field row (backend enum field_type, core_schema):
  *   short_text | long_text | number | date | dropdown | radio |
@@ -80,10 +82,23 @@ export function IdentityField({ name, value, error, disabled, onChange, hideRequ
   );
 }
 
-export default function FormFieldRenderer({ field, value, error, disabled, onChange, hideRequired }) {
+export default function FormFieldRenderer({ field, value, error, disabled, onChange, hideRequired, blockBrowserAutofill }) {
   const options = optionsOf(field);
   const id = `field-${field.field_key}`;
   const describedBy = error ? `${id}-error` : undefined;
+  const textValue = typeof value === "string" ? value : "";
+  const autoComplete = blockBrowserAutofill ? "off" : undefined;
+
+  function handleTextFocus(event) {
+    if (blockBrowserAutofill && event.currentTarget.value !== textValue) {
+      event.currentTarget.value = textValue;
+    }
+  }
+
+  function handleTextChange(event) {
+    if (blockBrowserAutofill && rejectBrowserAutofill(event, textValue)) return;
+    onChange(field.field_key, event.currentTarget.value);
+  }
 
   let control;
 
@@ -93,12 +108,14 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
         <input
           id={id}
           type="text"
+          autoComplete={autoComplete}
           placeholder={placeholderFor(field)}
-          value={typeof value === "string" ? value : ""}
+          value={textValue}
           required={field.required}
           disabled={disabled}
           aria-describedby={describedBy}
-          onChange={(e) => onChange(field.field_key, e.target.value)}
+          onFocus={handleTextFocus}
+          onChange={handleTextChange}
         />
       );
       break;
@@ -108,11 +125,13 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
         <textarea
           id={id}
           rows={3}
-          value={typeof value === "string" ? value : ""}
+          autoComplete={autoComplete}
+          value={textValue}
           required={field.required}
           disabled={disabled}
           aria-describedby={describedBy}
-          onChange={(e) => onChange(field.field_key, e.target.value)}
+          onFocus={handleTextFocus}
+          onChange={handleTextChange}
         />
       );
       break;
@@ -151,6 +170,7 @@ export default function FormFieldRenderer({ field, value, error, disabled, onCha
       control = (
         <select
           id={id}
+          autoComplete={autoComplete}
           value={typeof value === "string" ? value : ""}
           required={field.required}
           disabled={disabled}

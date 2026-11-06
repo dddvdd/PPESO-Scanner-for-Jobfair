@@ -1,5 +1,5 @@
 import { getSupabase } from "./supabaseClient.js";
-import { describeError } from "./errorTokens.js";
+import { describeError, ERROR_TOKENS } from "./errorTokens.js";
 
 /**
  * Single sanctioned data-access layer between UI and the verified Supabase
@@ -47,14 +47,23 @@ function nonEmptyTextOrNull(value) {
  * Events visible to the public. RLS (`events_read_public`) independently
  * hides drafts; the status filter mirrors that contract for clarity.
  */
-export function listPublishedEvents() {
-  return toResult(() =>
+export async function listPublishedEvents() {
+  const columns = "id, name, description, event_date, location, status";
+  const list = (selection) => toResult(() =>
     getSupabase()
       .from("events")
-      .select("id, name, description, event_date, location, status")
+      .select(selection)
       .in("status", ["published", "closed", "archived"])
       .order("event_date", { ascending: true, nullsFirst: false })
   );
+  let result = await list(`${columns}, is_online, event_end_date`);
+  if (!result.ok && ["42703", "PGRST204"].includes(result.error.raw?.code)) {
+    result = await list(`${columns}, is_online`);
+  }
+  if (!result.ok && ["42703", "PGRST204"].includes(result.error.raw?.code)) {
+    return list(columns);
+  }
+  return result;
 }
 
 /**
@@ -75,6 +84,7 @@ export async function getPublishedFormWithFields(eventId) {
       .eq("event_id", eventId)
       .eq("status", "published")
       .order("published_at", { ascending: false, nullsFirst: false })
+      .order("id")
       .limit(1)
   );
   if (!formsResult.ok) return formsResult;
@@ -429,6 +439,23 @@ export function adminCreateEvent(fields) {
   return toResult(() => getSupabase().from("events").insert(fields).select().single());
 }
 
+export async function adminSaveOnlineEvent(eventId, create, fields, positions) {
+  const result = await toResult(() => getSupabase().rpc("admin_save_online_event_range", {
+    p_event_id: eventId,
+    p_create: create,
+    p_name: fields.name,
+    p_description: fields.description,
+    p_event_date: fields.event_date,
+    p_event_end_date: fields.event_end_date ?? null,
+    p_municipality: fields.municipality,
+    p_positions: positions,
+  }));
+  if (!result.ok && ["PGRST202", "42883", "42703"].includes(result.error.raw?.code)) {
+    return fail({ message: ERROR_TOKENS.ONLINE_EVENT_SCHEMA_UNAVAILABLE });
+  }
+  return result;
+}
+
 export function adminUpdateEvent(eventId, patch) {
   return toResult(() =>
     getSupabase().from("events").update(patch).eq("id", eventId).select().single()
@@ -596,7 +623,8 @@ export function adminRestoreForms(rows) {
 }
 
 export function adminRestoreFormFields(rows) {
-  return toResult(() => getSupabase().from("form_fields").insert(rows));
+  // Publishing a restored form seeds its standard fields before the snapshot arrives.
+  return toResult(() => getSupabase().from("form_fields").upsert(rows, { onConflict: "form_id,field_key" }));
 }
 
 export function adminRestoreProfile(row) {

@@ -9,6 +9,7 @@ dist/
 .DS_Store
 
 .vercel
+.vscode/
 test-results/
 playwright.config.js
 

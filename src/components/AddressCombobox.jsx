@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { rejectBrowserAutofill } from "../lib/addressInput.js";
 
 function fold(value) {
   return String(value ?? "")
@@ -28,6 +29,7 @@ export default function AddressCombobox({
   onSelect,
   onInput,
   reloadKey,
+  blockBrowserAutofill,
 }) {
   const [options, setOptions] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -136,11 +138,17 @@ export default function AddressCombobox({
           placeholder={placeholder}
           value={value}
           disabled={disabled || !enabled}
-          onFocus={() => setOpen(true)}
+          onFocus={(event) => {
+            if (blockBrowserAutofill && event.currentTarget.value !== value) {
+              event.currentTarget.value = value;
+            }
+            setOpen(true);
+          }}
           onBlur={() => setOpen(false)}
           onKeyDown={handleKeyDown}
-          onChange={(e) => {
-            onInput(e.target.value);
+          onChange={(event) => {
+            if (blockBrowserAutofill && rejectBrowserAutofill(event, value)) return;
+            onInput(event.currentTarget.value);
             setOpen(true);
             setActiveIndex(-1);
           }}

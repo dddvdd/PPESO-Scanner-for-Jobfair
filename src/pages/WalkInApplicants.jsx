@@ -109,7 +109,7 @@ export default function WalkInApplicants() {
         <label className="field" htmlFor="walk-in-event">Activity *</label>
         <select id="walk-in-event" required value={eventId} disabled={saving} onChange={event => { setEventId(event.target.value); setConfirmed(false); setSuccess(null); }}>
           <option value="">Select an activity</option>
-          {events.map(event => <option key={event.id} value={event.id}>{event.name} — {event.event_date}</option>)}
+          {events.map(event => <option key={event.id} value={event.id}>{event.name} — {event.event_date}{event.event_end_date && event.event_end_date !== event.event_date ? ` – ${event.event_end_date}` : ""}</option>)}
         </select>
         {eventId && !formReady && !formError && <p role="status">Loading event registration form...</p>}
         {formError && <div role="alert"><p>{formError}</p><button className="btn btn--ghost" type="button" onClick={() => setFormAttempt(value => value + 1)}>Retry form</button></div>}
@@ -126,7 +126,7 @@ export default function WalkInApplicants() {
         </>}
         <label className="choice">
           <input type="checkbox" required checked={confirmed} disabled={saving || !selected || !formReady} onChange={event => setConfirmed(event.target.checked)} />
-          I confirm this walk-in attended {selected ? `${selected.name} on ${selected.event_date}` : "the selected activity"}.
+          I confirm this walk-in attended {selected ? selected.name : "the selected activity"}.
         </label>
         <p className="field-help">Saves registration and attendance together as a post-event walk-in. Your account and the actual recording time are retained.</p>
         <button type="submit" className="btn btn--primary" disabled={saving || !selected || !formReady || !confirmed}>{saving ? "Saving..." : "Save walk-in and attendance"}</button>

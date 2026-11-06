@@ -4,7 +4,7 @@ import AddressFieldsGroup from "./AddressFieldsGroup.jsx";
 import ClassificationCardGroup from "./ClassificationCardGroup.jsx";
 import { resolveExclusiveGroups } from "../lib/registrationForm.js";
 
-export default function RegistrationQuestions({ fields, answers, fieldErrors, submitting, handleAnswerChange, hideRequired }) {
+export default function RegistrationQuestions({ fields, answers, fieldErrors, submitting, handleAnswerChange, hideRequired, blockAddressAutofill }) {
   const exclusiveTrio = useMemo(() => resolveExclusiveGroups(fields)[0] ?? null, [fields]);
   const trioLabels = useMemo(() => {
     if (!exclusiveTrio) return {};
@@ -32,7 +32,7 @@ export default function RegistrationQuestions({ fields, answers, fieldErrors, su
     };
     return {
       province: find(["province"]),
-      city: find(["city_municipality", "municipality / city"]),
+      city: find(["municipality_city", "city_municipality", "municipality / city"]),
       barangay: find(["barangay"]),
     };
   }, [fields]);
@@ -75,6 +75,22 @@ export default function RegistrationQuestions({ fields, answers, fieldErrors, su
   const trioHasError = Boolean(
     exclusiveTrio?.some((key) => fieldErrors[key])
   );
+  const addressFieldKeys = Object.values(addressKeys);
+
+  function renderField(field) {
+    return (
+      <FormFieldRenderer
+        key={field.field_key}
+        field={field}
+        value={answers[field.field_key]}
+        error={fieldErrors[field.field_key]}
+        disabled={submitting}
+        onChange={handleAnswerChange}
+        hideRequired={hideRequired}
+        blockBrowserAutofill={blockAddressAutofill && addressFieldKeys.includes(field.field_key)}
+      />
+    );
+  }
 
   return <>
         {sortedFields.length > 0 && (
@@ -90,19 +106,10 @@ export default function RegistrationQuestions({ fields, answers, fieldErrors, su
                 disabled={submitting}
                 onChange={handleAnswerChange}
                 hideRequired={hideRequired}
+                blockBrowserAutofill={blockAddressAutofill}
               />
             )}
-            {(cardsBefore ?? cardlessFields).map((field) => (
-              <FormFieldRenderer
-                key={field.field_key}
-                field={field}
-                value={answers[field.field_key]}
-                error={fieldErrors[field.field_key]}
-                disabled={submitting}
-                onChange={handleAnswerChange}
-                hideRequired={hideRequired}
-              />
-            ))}
+            {(cardsBefore ?? cardlessFields).map(renderField)}
             {exclusiveTrio && (
               <ClassificationCardGroup
                 trio={exclusiveTrio}
@@ -114,17 +121,7 @@ export default function RegistrationQuestions({ fields, answers, fieldErrors, su
                 hideRequired={hideRequired}
               />
             )}
-            {(cardsAfter ?? []).map((field) => (
-              <FormFieldRenderer
-                key={field.field_key}
-                field={field}
-                value={answers[field.field_key]}
-                error={fieldErrors[field.field_key]}
-                disabled={submitting}
-                onChange={handleAnswerChange}
-                hideRequired={hideRequired}
-              />
-            ))}
+            {(cardsAfter ?? []).map(renderField)}
           </fieldset>
         )}
 
